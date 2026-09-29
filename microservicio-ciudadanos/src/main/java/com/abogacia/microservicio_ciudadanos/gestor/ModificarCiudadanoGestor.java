@@ -6,6 +6,7 @@ import com.abogacia.microservicio_ciudadanos.entity.Ciudadano;
 import com.abogacia.microservicio_ciudadanos.repository.CiudadanoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDate;
 
 @Service
 public class ModificarCiudadanoGestor {
@@ -42,6 +43,11 @@ public class ModificarCiudadanoGestor {
 
         ciudadano.setNombre(request.getNombre());
         ciudadano.setApellido(request.getApellido());
+        if (request.getFechaNacimiento() != null
+        && !request.getFechaNacimiento().isBlank()) {
+                ciudadano.setFechaNacimiento(
+                LocalDate.parse(request.getFechaNacimiento())
+                );}
         ciudadano.setDireccion(request.getDireccion());
         ciudadano.setMail(request.getMail());
         ciudadano.setNroCelular(request.getNroCelular());

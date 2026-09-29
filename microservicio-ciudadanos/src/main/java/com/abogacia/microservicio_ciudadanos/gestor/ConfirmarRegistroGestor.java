@@ -29,20 +29,12 @@ public class ConfirmarRegistroGestor {
     ) {
 
         Ciudadano ciudadano = ciudadanoRepository
-                .findByMail(request.getMail())
+                .findByCodigoConfirmacion(request.getCodigo())
                 .orElseThrow(() ->
                         new IllegalArgumentException(
-                                "No existe un ciudadano con ese correo."
+                                "El código de confirmación es incorrecto."
                         )
                 );
-
-        if (!request.getCodigo().equals(
-                ciudadano.getCodigoConfirmacion()
-        )) {
-            throw new IllegalArgumentException(
-                    "El código de confirmación es incorrecto."
-            );
-        }
 
         Estado estadoRegistrado = estadoRepository
                 .findByNombreEstado("REGISTRADO")
@@ -53,6 +45,8 @@ public class ConfirmarRegistroGestor {
                 );
 
         ciudadano.setEstado(estadoRegistrado);
+
+        // Una vez utilizado, eliminamos el código de confirmación.
         ciudadano.setCodigoConfirmacion(null);
 
         ciudadanoRepository.save(ciudadano);

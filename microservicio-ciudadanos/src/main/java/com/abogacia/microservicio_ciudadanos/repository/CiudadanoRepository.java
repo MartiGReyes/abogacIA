@@ -14,4 +14,5 @@ public interface CiudadanoRepository extends JpaRepository<Ciudadano, Long> {
     Optional<Ciudadano> findByCuil(String cuil);
 
     Optional<Ciudadano> findByMail(String mail);
+    Optional<Ciudadano> findByCodigoConfirmacion(String codigoConfirmacion);
 }

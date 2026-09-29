@@ -145,7 +145,7 @@ class RegistroYConfirmacionGestorTest {
         Ciudadano ciudadano = ciudadanoPendiente("123456");
         Estado estadoRegistrado = new Estado("REGISTRADO");
         ConfirmarRegistroRequest request = solicitudConfirmacion("123456");
-        when(ciudadanoRepository.findByMail(request.getMail()))
+        when(ciudadanoRepository.findByCodigoConfirmacion(request.getCodigo()))
                 .thenReturn(Optional.of(ciudadano));
         when(estadoRepository.findByNombreEstado("REGISTRADO"))
                 .thenReturn(Optional.of(estadoRegistrado));
@@ -159,10 +159,7 @@ class RegistroYConfirmacionGestorTest {
 
     @Test
     void confirmacionRechazaCodigoIncorrecto() {
-        Ciudadano ciudadano = ciudadanoPendiente("123456");
         ConfirmarRegistroRequest request = solicitudConfirmacion("000000");
-        when(ciudadanoRepository.findByMail(request.getMail()))
-                .thenReturn(Optional.of(ciudadano));
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
@@ -203,7 +200,6 @@ class RegistroYConfirmacionGestorTest {
 
     private ConfirmarRegistroRequest solicitudConfirmacion(String codigo) {
         ConfirmarRegistroRequest request = new ConfirmarRegistroRequest();
-        request.setMail("ana@example.com");
         request.setCodigo(codigo);
         return request;
     }
