@@ -1,3 +1,4 @@
+import { fetchAutenticado } from "./authService";
 const API_URL = "http://localhost:8080/api/ciudadanos";
 
 export async function registrarCiudadano(ciudadano) {
@@ -37,7 +38,7 @@ export async function confirmarRegistro(codigo) {
 }
 
 export async function modificarCiudadano(cuil, ciudadano) {
-    const response = await fetch(`${API_URL}/${cuil}`, {
+    const response = await fetchAutenticado(`${API_URL}/${cuil}`, {
         method: "PUT",
         headers: {
             "Content-Type": "application/json"
@@ -54,7 +55,7 @@ export async function modificarCiudadano(cuil, ciudadano) {
 }
 
 export async function consultarCiudadano(cuil) {
-    const response = await fetch(
+    const response = await fetchAutenticado(
         `http://localhost:8080/api/ciudadanos/${cuil}`
     );
 
@@ -69,7 +70,7 @@ export async function consultarCiudadano(cuil) {
 }
 
 export async function darDeBajaCiudadano(cuil) {
-    const response = await fetch(
+    const response = await fetchAutenticado(
         `http://localhost:8080/api/ciudadanos/${cuil}/baja`,
         {
             method: "PATCH"

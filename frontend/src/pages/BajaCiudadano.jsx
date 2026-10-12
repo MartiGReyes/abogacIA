@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { darDeBajaCiudadano } from "../services/ciudadanoService";
+import { cerrarSesion } from "../services/authService";
 
 function BajaCiudadano() {
 
@@ -25,6 +26,7 @@ function BajaCiudadano() {
         try {
 
             await darDeBajaCiudadano(cuil);
+            cerrarSesion();
 
             setMensaje(
                 "La cuenta fue dada de baja correctamente."

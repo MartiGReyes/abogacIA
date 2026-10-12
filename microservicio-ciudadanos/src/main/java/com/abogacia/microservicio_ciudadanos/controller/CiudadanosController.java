@@ -11,6 +11,11 @@ import com.abogacia.microservicio_ciudadanos.gestor.RegistrarCiudadanoGestor;
 import com.abogacia.microservicio_ciudadanos.gestor.RegistrarBajaCiudadanoGestor;
 
 import jakarta.validation.Valid;
+import com.abogacia.microservicio_ciudadanos.repository.CiudadanoRepository;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +26,8 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/ciudadanos")
 public class CiudadanosController {
 
+    private final CiudadanoRepository repository;
+
     private final RegistrarCiudadanoGestor registrarCiudadanoGestor;
     private final ConfirmarRegistroGestor confirmarRegistroGestor;
     private final ModificarCiudadanoGestor modificarCiudadanoGestor;
@@ -28,12 +35,14 @@ public class CiudadanosController {
         private final RegistrarBajaCiudadanoGestor registrarBajaCiudadanoGestor;
 
     public CiudadanosController(
+            CiudadanoRepository repository,
             RegistrarCiudadanoGestor registrarCiudadanoGestor,
             ConfirmarRegistroGestor confirmarRegistroGestor,
                         ModificarCiudadanoGestor modificarCiudadanoGestor,
                         ConsultarCiudadanoGestor consultarCiudadanoGestor,
                         RegistrarBajaCiudadanoGestor registrarBajaCiudadanoGestor
     ) {
+        this.repository = repository;
         this.registrarCiudadanoGestor = registrarCiudadanoGestor;
         this.confirmarRegistroGestor = confirmarRegistroGestor;
         this.modificarCiudadanoGestor = modificarCiudadanoGestor;
@@ -54,6 +63,15 @@ public class CiudadanosController {
                 .body(response);
     }
 
+    @GetMapping("/me")
+    @PreAuthorize("authentication.token.getClaimAsString('rol') == 'CIUDADANO'")
+    public CiudadanoResponse misDatos(@AuthenticationPrincipal Jwt jwt) {
+        var ciudadano = repository.findById(Long.valueOf(jwt.getSubject()))
+                .filter(c -> "REGISTRADO".equals(c.getEstado().getNombreEstado()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN));
+        return consultarCiudadanoGestor.consultar(ciudadano.getCuil());
+    }
+
     @PostMapping("/confirmar")
     public ResponseEntity<CiudadanoResponse> confirmarRegistro(
             @Valid @RequestBody ConfirmarRegistroRequest request
@@ -66,6 +84,7 @@ public class CiudadanosController {
     }
 
     @PutMapping("/{cuil}")
+    @PreAuthorize("@cuentaPropia.permite(authentication, #cuil)")
     public ResponseEntity<CiudadanoResponse> modificar(
             @PathVariable String cuil,
             @Valid @RequestBody ModificarCiudadanoRequest request
@@ -78,6 +97,7 @@ public class CiudadanosController {
     }
 
     @GetMapping("/{cuil}")
+    @PreAuthorize("@cuentaPropia.permite(authentication, #cuil)")
     public ResponseEntity<CiudadanoResponse> consultar(
             @PathVariable String cuil
     ) {
@@ -89,6 +109,7 @@ public class CiudadanosController {
     }
 
     @PatchMapping("/{cuil}/baja")
+    @PreAuthorize("@cuentaPropia.permite(authentication, #cuil)")
     public ResponseEntity<CiudadanoResponse> darDeBaja(
             @PathVariable String cuil
     ) {
