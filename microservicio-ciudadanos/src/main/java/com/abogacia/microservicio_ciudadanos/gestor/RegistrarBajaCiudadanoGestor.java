@@ -23,13 +23,13 @@ public class RegistrarBajaCiudadanoGestor {
     }
 
     @Transactional
-    public CiudadanoResponse darDeBaja(String cuil) {
+    public CiudadanoResponse darDeBaja(String dni) {
 
         Ciudadano ciudadano = ciudadanoRepository
-                .findByCuil(cuil)
+                .findByDni(dni)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
-                                "No existe un ciudadano con ese CUIL."
+                                "No existe un ciudadano con ese DNI."
                         )
                 );
 

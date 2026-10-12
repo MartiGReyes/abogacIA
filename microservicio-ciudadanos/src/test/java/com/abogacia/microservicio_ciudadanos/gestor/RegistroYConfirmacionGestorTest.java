@@ -18,6 +18,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -49,7 +50,7 @@ class RegistroYConfirmacionGestorTest {
         );
         confirmarGestor = new ConfirmarRegistroGestor(
                 ciudadanoRepository,
-                estadoRepository
+                new VerificarDniCiudadanoGestor(estadoRepository)
         );
 
         when(ciudadanoRepository.save(any(Ciudadano.class)))
@@ -61,7 +62,7 @@ class RegistroYConfirmacionGestorTest {
     @Test
     void registroCorrectoCreaCiudadanoPendienteYEnviaCodigo() {
         RegistrarCiudadanoRequest request = solicitudValida();
-        when(ciudadanoRepository.existsByCuil(request.getCuil()))
+        when(ciudadanoRepository.existsByDni(request.getDni()))
                 .thenReturn(false);
         when(ciudadanoRepository.existsByMail(request.getMail()))
                 .thenReturn(false);
@@ -71,7 +72,7 @@ class RegistroYConfirmacionGestorTest {
         CiudadanoResponse response = registrarGestor.registrar(request);
 
         assertEquals("PENDIENTE", response.getEstado());
-        assertEquals(request.getCuil(), response.getCuil());
+        assertEquals(request.getDni(), response.getDni());
         verify(passwordEncoder).encode("clave-segura");
         verify(interfazCorreo).enviarMailConfirmacion(
                 eq(request.getMail()),
@@ -80,9 +81,9 @@ class RegistroYConfirmacionGestorTest {
     }
 
     @Test
-    void registroRechazaCuilDuplicado() {
+    void registroRechazaDniDuplicado() {
         RegistrarCiudadanoRequest request = solicitudValida();
-        when(ciudadanoRepository.existsByCuil(request.getCuil()))
+        when(ciudadanoRepository.existsByDni(request.getDni()))
                 .thenReturn(true);
 
         IllegalArgumentException exception = assertThrows(
@@ -91,7 +92,7 @@ class RegistroYConfirmacionGestorTest {
         );
 
         assertEquals(
-                "Ya existe un ciudadano registrado con ese CUIL.",
+                "Ya existe un ciudadano registrado con ese DNI.",
                 exception.getMessage()
         );
         verify(ciudadanoRepository, never()).save(any(Ciudadano.class));
@@ -102,7 +103,7 @@ class RegistroYConfirmacionGestorTest {
     @Test
     void registroRechazaMailDuplicado() {
         RegistrarCiudadanoRequest request = solicitudValida();
-        when(ciudadanoRepository.existsByCuil(request.getCuil()))
+        when(ciudadanoRepository.existsByDni(request.getDni()))
                 .thenReturn(false);
         when(ciudadanoRepository.existsByMail(request.getMail()))
                 .thenReturn(true);
@@ -141,19 +142,19 @@ class RegistroYConfirmacionGestorTest {
     }
 
     @Test
-    void confirmacionCorrectaRegistraCiudadanoYLimpiaCodigo() {
+    void confirmacionCorrectaConfirmaCorreoPeroQuedaPendienteHastaDidit() {
         Ciudadano ciudadano = ciudadanoPendiente("123456");
-        Estado estadoRegistrado = new Estado("REGISTRADO");
         ConfirmarRegistroRequest request = solicitudConfirmacion("123456");
         when(ciudadanoRepository.findByCodigoConfirmacion(request.getCodigo()))
                 .thenReturn(Optional.of(ciudadano));
-        when(estadoRepository.findByNombreEstado("REGISTRADO"))
-                .thenReturn(Optional.of(estadoRegistrado));
 
         CiudadanoResponse response = confirmarGestor.confirmar(request);
 
-        assertEquals("REGISTRADO", response.getEstado());
+        assertEquals("PENDIENTE", response.getEstado());
+        assertTrue(response.getCorreoConfirmado());
+        assertEquals("PENDIENTE", response.getVerificacionDni());
         assertNull(ciudadano.getCodigoConfirmacion());
+        verify(estadoRepository, never()).findByNombreEstado("REGISTRADO");
         verify(ciudadanoRepository).save(ciudadano);
     }
 
@@ -179,7 +180,7 @@ class RegistroYConfirmacionGestorTest {
         RegistrarCiudadanoRequest request = new RegistrarCiudadanoRequest();
         request.setNombre("Ana");
         request.setApellido("Gomez");
-        request.setCuil("20123456789");
+        request.setDni("12345678");
         request.setFechaNacimiento(LocalDate.now().minusYears(30));
         request.setMail("ana@example.com");
         request.setContrasena("clave-segura");
@@ -190,7 +191,7 @@ class RegistroYConfirmacionGestorTest {
         Ciudadano ciudadano = new Ciudadano();
         ciudadano.setNombre("Ana");
         ciudadano.setApellido("Gomez");
-        ciudadano.setCuil("20123456789");
+        ciudadano.setDni("12345678");
         ciudadano.setFechaNacimiento(LocalDate.now().minusYears(30));
         ciudadano.setMail("ana@example.com");
         ciudadano.setEstado(new Estado("PENDIENTE"));

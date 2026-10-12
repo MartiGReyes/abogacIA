@@ -127,6 +127,23 @@ Respuesta: `{"token":"...","rol":"CIUDADANO","idUsuario":"..."}`.
 Enviar `Authorization: Bearer <token>` al consultar `GET http://localhost:8080/api/ciudadanos/me` o al operar por CUIL.
 Credenciales incorrectas, mail inexistente, PENDIENTE y BAJA devuelven 401 con el mismo mensaje. Peticiones inválidas devuelven 400; un servicio de ciudadanos no disponible devuelve 503.
 
+## Ciudadanos: DNI en lugar de CUIL (12/10/2026)
+
+El ciudadano se registra con **DNI** (7 u 8 dígitos) en lugar de CUIL. Las rutas por cuenta pasaron a `/api/ciudadanos/{dni}` (GET, PUT y PATCH `/baja`) y Didit compara el DNI del documento directamente con el registrado. En React, el perfil está en `/mis-datos` y se carga desde `/api/ciudadanos/me`. Donde el texto siguiente diga CUIL, leer DNI.
+
+## Verificación de identidad de ciudadanos (Didit)
+
+Agregado el 12/10/2026, replicando la Etapa 1 de abogados (ver [ABOGADOS.md](ABOGADOS.md)) en el microservicio de ciudadanos. **Cambia el flujo anterior:** confirmar el correo ya no habilita la cuenta.
+
+1. Registro en `/registro` → cuenta PENDIENTE.
+2. Confirmación del código en `/confirmar-registro` → `correoConfirmado=true`, la cuenta sigue PENDIENTE y el login devuelve 401.
+3. `/verificar-identidad-ciudadano`: correo y contraseña entregan un token temporal (15 minutos); el ciudadano acepta el aviso y completa documento, prueba de vida y Face Match en Didit.
+4. Con la decisión aprobada por Didit y el DNI del documento igual al contenido en el CUIL registrado (dígitos 3 a 10), la cuenta pasa a REGISTRADO y puede iniciar sesión. Un DNI distinto produce RECHAZADA.
+
+Endpoints en el puerto 8080, con las mismas reglas que abogados: GET `/api/ciudadanos/verificacion/aviso`, POST `/acceso`, POST `/sesion`, GET `/estado`, POST `/consultar` y POST `/cerrar`. Se autorizan con el header `X-Registro-Token`, no con JWT. Las variables `DIDIT_*` son las mismas que en abogados; `DIDIT_CALLBACK_URL` vale por defecto `http://localhost:5173/verificar-identidad-ciudadano`. Ambos servicios pueden usar la misma API Key y el mismo workflow: cada sesión se vincula a su servicio por `vendor_data`.
+
+Cuentas existentes: los ciudadanos que ya estaban REGISTRADO antes del cambio conservan el acceso sin verificación. Los PENDIENTE confirman el correo y luego deben verificarse.
+
 ## Verificación automatizada
 
 ```powershell

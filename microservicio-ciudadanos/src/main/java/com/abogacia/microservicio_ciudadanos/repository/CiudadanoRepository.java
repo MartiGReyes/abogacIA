@@ -7,12 +7,17 @@ import java.util.Optional;
 
 public interface CiudadanoRepository extends JpaRepository<Ciudadano, Long> {
 
-    boolean existsByCuil(String cuil);
+    boolean existsByDni(String dni);
 
     boolean existsByMail(String mail);
 
-    Optional<Ciudadano> findByCuil(String cuil);
+    Optional<Ciudadano> findByDni(String dni);
 
     Optional<Ciudadano> findByMail(String mail);
     Optional<Ciudadano> findByCodigoConfirmacion(String codigoConfirmacion);
+
+    Optional<Ciudadano> findByAccesoRegistroHash(String hash);
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select c from Ciudadano c where c.idCiudadano = :id")
+    Optional<Ciudadano> findByIdForUpdate(@org.springframework.data.repository.query.Param("id") Long id);
 }

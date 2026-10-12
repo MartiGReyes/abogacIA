@@ -1,0 +1,10 @@
+target/
+.mvn/
+mvnw
+mvnw.cmd
+.env
+.env.*
+*.xlsx
+.idea/
+.vscode/
+*.iml

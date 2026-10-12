@@ -1,0 +1,98 @@
+# PostgreSQL + los tres microservicios. La configuración se lee de .env (copiar desde .env.example).
+# Uso: docker compose up --build    |    Ver DOCKER.md
+name: abogacia
+
+x-interno: &interno
+  INTERNAL_USERNAME: ${INTERNAL_USERNAME:?Definí INTERNAL_USERNAME en .env}
+  INTERNAL_PASSWORD: ${INTERNAL_PASSWORD:?Definí INTERNAL_PASSWORD en .env}
+
+x-didit: &didit
+  DIDIT_API_KEY: ${DIDIT_API_KEY:-}
+  DIDIT_WORKFLOW_ID: ${DIDIT_WORKFLOW_ID:-}
+  DIDIT_PRIVACY_READY: ${DIDIT_PRIVACY_READY:-false}
+  DIDIT_NOTICE_VERSION: ${DIDIT_NOTICE_VERSION:-}
+  DIDIT_DATA_CONTROLLER: ${DIDIT_DATA_CONTROLLER:-}
+  DIDIT_PRIVACY_CONTACT: ${DIDIT_PRIVACY_CONTACT:-}
+  DIDIT_RETENTION_NOTICE: ${DIDIT_RETENTION_NOTICE:-}
+  DIDIT_DATA_LOCATION_NOTICE: ${DIDIT_DATA_LOCATION_NOTICE:-}
+  DIDIT_MODEL_USE_NOTICE: ${DIDIT_MODEL_USE_NOTICE:-}
+  DIDIT_RECONCILIATION_ENABLED: ${DIDIT_RECONCILIATION_ENABLED:-true}
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Definí DB_PASSWORD en .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      # 5433 en la máquina para no chocar con un PostgreSQL instalado localmente.
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  ciudadanos:
+    build: ./microservicio-ciudadanos
+    environment:
+      <<: [*interno, *didit]
+      DB_URL: jdbc:postgresql://postgres:5432/abogacia_ciudadanos
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Definí JWT_SECRET en .env}
+      DIDIT_CALLBACK_URL: http://localhost:5173/verificar-identidad-ciudadano
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  abogados:
+    build: ./microservicio-abogados
+    environment:
+      <<: [*interno, *didit]
+      DB_URL: jdbc:postgresql://postgres:5432/abogacia_abogados
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DIDIT_CALLBACK_URL: http://localhost:5173/registro-abogado
+      ABOGADOS_CORREO_CONSOLA: ${ABOGADOS_CORREO_CONSOLA:-false}
+      PADRON_IMPORTAR: ${PADRON_IMPORTAR:-false}
+      PADRON_ARCHIVO: /padron/PADRON-RIO-TERCERO-ENERO.xlsx
+    volumes:
+      # Copiar el Excel del padrón a docker/padron/ (no se sube al repositorio).
+      - ./docker/padron:/padron:ro
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  autenticacion:
+    build: ./microservicio-autenticacion
+    environment:
+      <<: *interno
+      JWT_SECRET: ${JWT_SECRET}
+      CIUDADANOS_URL: http://ciudadanos:8080
+      ABOGADOS_URL: http://abogados:8082
+      ADMIN_MAIL: ${ADMIN_MAIL:-}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-}
+    ports:
+      - "8081:8081"
+    depends_on:
+      - ciudadanos
+      - abogados
+
+  frontend:
+    build: ./frontend
+    ports:
+      # 5173: Didit y el CORS de los microservicios esperan http://localhost:5173.
+      - "5173:80"
+    depends_on:
+      - autenticacion
+
+volumes:
+  pgdata:

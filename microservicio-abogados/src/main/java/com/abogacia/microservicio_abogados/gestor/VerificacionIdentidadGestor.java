@@ -5,7 +5,6 @@ import com.abogacia.microservicio_abogados.dto.AbogadoResponse;
 import com.abogacia.microservicio_abogados.entity.*;
 import com.abogacia.microservicio_abogados.repository.*;
 import org.springframework.stereotype.Service;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
@@ -19,12 +18,10 @@ import java.nio.charset.StandardCharsets;
 public class VerificacionIdentidadGestor {
     private final AbogadoRepository abogados;
     private final VerificacionIdentidadRepository verificaciones;
-    private final PasswordEncoder passwords;
     private final DiditClient client;
     private final DiditConfig config;
     private final VerificarDniAbogadoGestor resultados;
     private final TransactionTemplate tx;
-    private final String dummy;
     @org.springframework.beans.factory.annotation.Autowired
     private DiditPruebaLocal pruebaLocal;
     private boolean pruebaHabilitada(){return pruebaLocal!=null && pruebaLocal.habilitada();}
@@ -34,38 +31,24 @@ public class VerificacionIdentidadGestor {
         return new DiditConfig.Aviso(false,aviso.version(),aviso.texto());
     }
     public VerificacionIdentidadGestor(AbogadoRepository abogados,VerificacionIdentidadRepository verificaciones,
-            PasswordEncoder passwords,DiditClient client,DiditConfig config,VerificarDniAbogadoGestor resultados,PlatformTransactionManager tm){
-        this.abogados=abogados;this.verificaciones=verificaciones;this.passwords=passwords;
+            DiditClient client,DiditConfig config,VerificarDniAbogadoGestor resultados,PlatformTransactionManager tm){
+        this.abogados=abogados;this.verificaciones=verificaciones;
         this.client=client;this.config=config;this.resultados=resultados;tx=new TransactionTemplate(tm);
-        dummy=passwords.encode(UUID.randomUUID().toString());
     }
-    public record Acceso(String token,Instant vence) {
-        @Override public String toString(){return "Acceso[token omitido]";}
+    /** Identity data read from the approved document, shown back to its owner for review. */
+    public record Datos(String dni,String nombre,String apellido,java.time.LocalDate fechaNacimiento,String genero,String domicilio) {
+        @Override public String toString(){return "Datos[datos omitidos]";}
     }
-    public record Estado(AbogadoResponse cuenta,String sesionEstado,String url,boolean puedeReintentar,String avisoVersion,String seguimiento) {
+    public record Estado(AbogadoResponse cuenta,String sesionEstado,String url,boolean puedeReintentar,String avisoVersion,String seguimiento,Datos datos) {
         @Override public String toString(){return "Estado[datos omitidos]";}
     }
     private record Trabajo(Long id,String sesion,String referencia,String operacion) {}
 
-    public Acceso acceso(String mail,String password){
-        var existente=abogados.findByMail(mail.trim().toLowerCase(Locale.ROOT)).orElse(null);
-        boolean valid=password.getBytes(StandardCharsets.UTF_8).length<=72;
-        boolean coincide=passwords.matches(valid?password:"",existente==null?dummy:existente.getContrasenaHash());
-        if(!valid || !coincide || existente==null)throw denied();
-        return tx.execute(s->{
-            var a=abogados.findByIdForUpdate(existente.getIdAbogado()).orElseThrow();
-            if(!a.getCorreoConfirmado() || a.getEstado()==null || "BAJA".equals(a.getEstado().getNombreEstado()))throw denied();
-            byte[] bytes=new byte[32];new SecureRandom().nextBytes(bytes);
-            String token=Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-            Instant vence=Instant.now().plusSeconds(900);
-            a.setAccesoRegistroHash(hash(token));a.setAccesoRegistroVence(vence);
-            return new Acceso(token,vence);
-        });
-    }
-    private Long titular(String token){
+    /** The temporary token is issued when the registration request starts (RegistrarAbogadoGestor.iniciar). */
+    public Long titular(String token){
         if(token==null || !token.matches("[A-Za-z0-9_-]{43}"))throw denied();
         var a=abogados.findByAccesoRegistroHash(hash(token)).orElseThrow(VerificacionIdentidadGestor::denied);
-        if(a.getAccesoRegistroVence()==null || !a.getAccesoRegistroVence().isAfter(Instant.now()) || !a.getCorreoConfirmado()
+        if(a.getAccesoRegistroVence()==null || !a.getAccesoRegistroVence().isAfter(Instant.now())
                 || "BAJA".equals(a.getEstado().getNombreEstado()))throw denied();
         return a.getIdAbogado();
     }
@@ -141,9 +124,11 @@ public class VerificacionIdentidadGestor {
             boolean reintento=v==null || ("ERROR_CREACION".equals(v.estado) && v.errores<5)
                     || (v.intentos<3 && Set.of("Expired","Abandoned").contains(v.estado));
             if(pruebaHabilitada())reintento=pruebaLocal.permite(id) && (v==null || v.intentos==0);
+            Datos datos="APROBADA".equals(a.getVerificacionDni())
+                    ?new Datos(a.getDni(),a.getNombre(),a.getApellido(),a.getFechaNacimiento(),a.getGenero(),a.getDomicilio()):null;
             return new Estado(AbogadoResponse.de(a),v==null?"SIN_SESION":v.estado,
                     v!=null && !Set.of("Expired","Abandoned","Declined","Kyc Expired","BAJA").contains(v.estado)?v.url:null,
-                    reintento,v==null?null:v.avisoVersion,v==null?null:v.errorCodigo);
+                    reintento,v==null?null:v.avisoVersion,v==null?null:v.errorCodigo,datos);
         });
     }
     public void reconciliar(Long id,boolean periodica){

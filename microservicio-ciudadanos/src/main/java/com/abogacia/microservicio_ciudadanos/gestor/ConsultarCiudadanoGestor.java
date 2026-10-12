@@ -16,13 +16,13 @@ public class ConsultarCiudadanoGestor {
         this.ciudadanoRepository = ciudadanoRepository;
     }
 
-    public CiudadanoResponse consultar(String cuil) {
+    public CiudadanoResponse consultar(String dni) {
 
         Ciudadano ciudadano = ciudadanoRepository
-                .findByCuil(cuil)
+                .findByDni(dni)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
-                                "No existe un ciudadano con ese CUIL."
+                                "No existe un ciudadano con ese DNI."
                         )
                 );
 

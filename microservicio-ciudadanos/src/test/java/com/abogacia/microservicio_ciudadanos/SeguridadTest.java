@@ -23,15 +23,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class SeguridadTest {
     @Autowired WebApplicationContext context;
     @Autowired CiudadanoRepository repository;
+    @Autowired com.abogacia.microservicio_ciudadanos.repository.EstadoRepository estados;
+    @Autowired com.abogacia.microservicio_ciudadanos.repository.VerificacionIdentidadRepository verificaciones;
     MockMvc mvc;
     final String credenciales = "{\"mail\":\"ana@example.com\",\"contrasena\":\"clave-segura\"}";
     final String interno = "/api/interno/ciudadanos/validar-credenciales";
     final String registro = """
-        {"nombre":"Ana","apellido":"Perez","cuil":"20123456789",
+        {"nombre":"Ana","apellido":"Perez","dni":"12345678",
         "fechaNacimiento":"1990-01-01","mail":"ana@example.com","contrasena":"clave-segura"}
         """;
     @BeforeEach void setup() {
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        verificaciones.deleteAll();
         repository.deleteAll();
     }
 
@@ -58,6 +61,13 @@ class SeguridadTest {
         var ciudadano = repository.findByMail("ana@example.com").orElseThrow();
         mvc.perform(post("/api/ciudadanos/confirmar").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"codigo\":\"" + ciudadano.getCodigoConfirmacion() + "\"}")).andExpect(status().isOk());
+        // Correo confirmado pero identidad sin aprobar: la cuenta sigue PENDIENTE y no inicia sesión.
+        mvc.perform(post(interno).with(httpBasic("test-service", "test-only-password"))
+                .contentType(MediaType.APPLICATION_JSON).content(credenciales)).andExpect(status().isUnauthorized());
+        ciudadano = repository.findByMail("ana@example.com").orElseThrow();
+        ciudadano.setVerificacionDni("APROBADA");
+        ciudadano.setEstado(estados.findByNombreEstado("REGISTRADO").orElseThrow());
+        repository.save(ciudadano);
         mvc.perform(post(interno).with(httpBasic("test-service", "test-only-password"))
                 .contentType(MediaType.APPLICATION_JSON).content(credenciales))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.idCiudadano").value(ciudadano.getIdCiudadano()))
@@ -69,7 +79,7 @@ class SeguridadTest {
         }
         String own = "Bearer " + token(ciudadano.getIdCiudadano().toString());
         String other = "Bearer " + token("999999");
-        String path = "/api/ciudadanos/" + ciudadano.getCuil();
+        String path = "/api/ciudadanos/" + ciudadano.getDni();
         mvc.perform(get(path)).andExpect(status().isUnauthorized());
         mvc.perform(get(path).with(httpBasic("test-service", "test-only-password"))).andExpect(status().isUnauthorized());
         mvc.perform(get(path).header("Authorization", own)).andExpect(status().isOk());

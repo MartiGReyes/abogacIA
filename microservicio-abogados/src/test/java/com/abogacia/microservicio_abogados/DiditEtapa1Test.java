@@ -4,6 +4,7 @@ import com.abogacia.microservicio_abogados.didit.*;
 import com.abogacia.microservicio_abogados.entity.*;
 import com.abogacia.microservicio_abogados.repository.*;
 import com.abogacia.microservicio_abogados.gestor.*;
+import com.abogacia.microservicio_abogados.dto.IniciarSolicitudRequest;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -96,6 +97,7 @@ class DiditEtapa1Test {
     @Autowired DiditConfig config;
     @Autowired DiditClient client;
     @Autowired VerificarDniAbogadoGestor resultados;
+    @Autowired RegistrarAbogadoGestor registro;
     @Autowired org.springframework.transaction.PlatformTransactionManager tm;
     @Autowired WebApplicationContext context;
     Long id;String password,token;
@@ -104,12 +106,13 @@ class DiditEtapa1Test {
         doc=life=face=global="Approved";dni="12.345.678";incompleta=vendorAjeno=bloquear=false;
         entered=new CountDownLatch(1);release=new CountDownLatch(1);
         password=UUID.randomUUID().toString();
-        AbogadoRegistrado a=new AbogadoRegistrado();a.setNombre("Prueba");a.setApellido("Didit");a.setDni("12345678");a.setMail("didit@example.com");
-        a.setContrasenaHash(passwords.encode(password));a.setCorreoConfirmado(true);a.setVerificacionDni("PENDIENTE");a.setValidacionMatricula("VALIDADA");
+        // The request issues the temporary token; the account is then completed directly to isolate Didit behaviour.
+        token=registro.iniciar(new IniciarSolicitudRequest("12345678","didit@example.com","3511234567")).token();
+        AbogadoRegistrado a=abogados.findByMail("didit@example.com").orElseThrow();
+        a.setNombre("Prueba");a.setApellido("Didit");a.setContrasenaHash(passwords.encode(password));a.setCorreoConfirmado(true);a.setValidacionMatricula("VALIDADA");
         a.setNroMatricula("10-999");a.setColegioProfesional("Colegio de Abogados de Río Tercero");a.setProvincia("Córdoba");
-        a.setEstado(estados.findByNombreEstado("PENDIENTE").orElseThrow());id=abogados.save(a).getIdAbogado();
+        id=abogados.save(a).getIdAbogado();
         padron.save(new PadronEvidencia("10-999","12345678","PRUEBA DIDIT","ACTIVO","test",1,"test"));
-        token=gestor.acceso("didit@example.com",password).token();
     }
     void crear(){gestor.crear(token,true,config.aviso().version());}
     VerificacionIdentidadGestor prueba(Long autorizado,Instant vence){
@@ -122,7 +125,7 @@ class DiditEtapa1Test {
             .withProperty("DIDIT_RECONCILIATION_ENABLED","false");
         var avisoConfig=new DiditConfig(key,workflow,"http://localhost:5173/verificar-identidad",false,
             "1.0","Responsable sintético","contacto sintético","Retención ilimitada ficticia","Ubicación ficticia","Uso ficticio");
-        var g=new VerificacionIdentidadGestor(abogados,verificaciones,passwords,client,avisoConfig,resultados,tm);
+        var g=new VerificacionIdentidadGestor(abogados,verificaciones,client,avisoConfig,resultados,tm);
         org.springframework.test.util.ReflectionTestUtils.setField(g,"pruebaLocal",new DiditPruebaLocal(env));
         return g;
     }
@@ -184,7 +187,7 @@ class DiditEtapa1Test {
         assertThrows(ResponseStatusException.class,()->gestor.crear(token,false,config.aviso().version()));
         assertThrows(ResponseStatusException.class,()->gestor.crear(token,true,"viejo"));assertEquals(0,creates.get());
         var sinAviso=new DiditConfig("","", "",false,"","","","","","");assertFalse(sinAviso.aviso().disponible());
-        var bloqueado=new VerificacionIdentidadGestor(abogados,verificaciones,passwords,client,sinAviso,resultados,tm);
+        var bloqueado=new VerificacionIdentidadGestor(abogados,verificaciones,client,sinAviso,resultados,tm);
         assertThrows(ResponseStatusException.class,()->bloqueado.crear(token,true,"x"));assertEquals(0,creates.get());
     }
     @Test void cerrarAccesoRevocaEnServidor(){gestor.cerrar(token);assertThrows(ResponseStatusException.class,()->gestor.estado(token,false));}
@@ -194,14 +197,15 @@ class DiditEtapa1Test {
         v=verificaciones.findById(id).orElseThrow();v.leaseHasta=null;v.consultas=240;verificaciones.save(v);
         gestor.reconciliar(id,true);assertNull(verificaciones.findById(id).orElseThrow().proximaConsulta);assertEquals("PENDIENTE",cuenta());
     }
-    @Test void accesoRotadoExpiradoYCorreoPendienteNoAutorizan(){
-        String anterior=token;token=gestor.acceso("didit@example.com",password).token();
-        assertThrows(ResponseStatusException.class,()->gestor.estado(anterior,false));
+    @Test void tokenInvalidoOExpiradoNoAutoriza(){
+        assertThrows(ResponseStatusException.class,()->gestor.estado("x".repeat(43),false));
+        assertThrows(ResponseStatusException.class,()->gestor.estado(null,false));
         var a=abogados.findById(id).orElseThrow();a.setAccesoRegistroVence(Instant.now().minusSeconds(1));abogados.save(a);
         assertThrows(ResponseStatusException.class,()->gestor.estado(token,false));
-        a=abogados.findById(id).orElseThrow();a.setCorreoConfirmado(false);abogados.save(a);
-        assertThrows(ResponseStatusException.class,()->gestor.acceso("didit@example.com",password));
-        assertThrows(ResponseStatusException.class,()->gestor.acceso("nadie@example.com",password));
+    }
+    @Test void cuentaCreadaNoSeReemplazaConOtraSolicitud(){
+        assertThrows(ResponseStatusException.class,()->registro.iniciar(new IniciarSolicitudRequest("12345678","otro@example.com","1")));
+        assertThrows(ResponseStatusException.class,()->registro.iniciar(new IniciarSolicitudRequest("23456789","didit@example.com","1")));
     }
     @Test void aprobacionCompletaYPollPeriodicoHabilitan(){
         crear();permitirConsulta();new ReconciliarDidit(verificaciones,gestor,true).reconciliar();
@@ -254,5 +258,14 @@ class DiditEtapa1Test {
         assertEquals("12345678",DiditVerificadorIdentidad.normalizarDni("12.345.678"));
         for(String value:List.of("12x345678","+12345678","12345678-9","12 345 678"))assertEquals("",DiditVerificadorIdentidad.normalizarDni(value));
         assertThrows(RuntimeException.class,()->DiditClient.verificarUrl("https://verify.didit.me.evil.test/session"));
+    }
+    @Test void personalNumberSoloBloqueaSiEsUnDniDistinto(){
+        var aprobado=List.of(new DiditClient.Reporte("Approved",null,null,null,null,null,null));
+        java.util.function.Function<String,VerificadorIdentidad.Estado> evaluar=personal->DiditVerificadorIdentidad.evaluar(
+                new DiditClient.Decision(UUID.randomUUID().toString(),workflow,"ref","Approved",
+                        List.of(new DiditClient.Reporte("Approved",null,"Identity Card","ARG","12345678",personal,"document")),aprobado,aprobado)).estado();
+        for(String personal:Arrays.asList(null,"","123456789012345","12.345.678","12345678"))
+            assertEquals(VerificadorIdentidad.Estado.APROBADA,evaluar.apply(personal));
+        assertEquals(VerificadorIdentidad.Estado.PENDIENTE,evaluar.apply("23456789"));
     }
 }

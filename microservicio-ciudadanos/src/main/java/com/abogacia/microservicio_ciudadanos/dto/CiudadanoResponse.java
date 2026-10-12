@@ -9,18 +9,22 @@ public class CiudadanoResponse {
     private Long idCiudadano;
     private String nombre;
     private String apellido;
-    private String cuil;
+    private String dni;
     private LocalDate fechaNacimiento;
     private String direccion;
     private String mail;
     private String nroCelular;
     private String estado;
+    private boolean correoConfirmado;
+    private String verificacionDni;
 
     public CiudadanoResponse(Ciudadano ciudadano) {
+        this.correoConfirmado = ciudadano.getCorreoConfirmado();
+        this.verificacionDni = ciudadano.getVerificacionDni() == null ? "PENDIENTE" : ciudadano.getVerificacionDni();
         this.idCiudadano = ciudadano.getIdCiudadano();
         this.nombre = ciudadano.getNombre();
         this.apellido = ciudadano.getApellido();
-        this.cuil = ciudadano.getCuil();
+        this.dni = ciudadano.getDni();
         this.fechaNacimiento = ciudadano.getFechaNacimiento();
         this.direccion = ciudadano.getDireccion();
         this.mail = ciudadano.getMail();
@@ -40,8 +44,8 @@ public class CiudadanoResponse {
         return apellido;
     }
 
-    public String getCuil() {
-        return cuil;
+    public String getDni() {
+        return dni;
     }
 
     public LocalDate getFechaNacimiento() {
@@ -62,5 +66,13 @@ public class CiudadanoResponse {
 
     public String getEstado() {
         return estado;
+    }
+
+    public boolean getCorreoConfirmado() {
+        return correoConfirmado;
+    }
+
+    public String getVerificacionDni() {
+        return verificacionDni;
     }
 }

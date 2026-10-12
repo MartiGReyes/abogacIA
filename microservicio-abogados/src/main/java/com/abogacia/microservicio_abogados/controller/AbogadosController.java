@@ -6,6 +6,7 @@ import jakarta.validation.constraints.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+/** El alta se hace en /api/abogados/verificacion/solicitud y /cuenta; aquí queda la confirmación del correo. */
 @RestController
 @RequestMapping("/api/abogados")
 public class AbogadosController {
@@ -14,8 +15,6 @@ public class AbogadosController {
  }
  private final RegistrarAbogadoGestor registro;
  public AbogadosController(RegistrarAbogadoGestor registro){this.registro=registro;}
- @PostMapping @ResponseStatus(HttpStatus.CREATED)
- public AbogadoResponse registrar(@Valid @RequestBody RegistrarAbogadoRequest request){return registro.registrar(request);}
  @PostMapping("/confirmar") public AbogadoResponse confirmar(@Valid @RequestBody ConfirmarRequest request){
   return registro.confirmar(request.mail(),request.codigo()).orElseThrow(()->new ResponseStatusException(HttpStatus.BAD_REQUEST,"Código inválido, vencido o sin intentos disponibles."));
  }

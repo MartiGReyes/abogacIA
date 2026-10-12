@@ -1,0 +1,19 @@
+// Datos de demostración del diseño: el catálogo de abogados y el historial de Lexi todavía no tienen backend.
+
+export const MOCK_HISTORY = [
+  { id: 1, fecha: '2026-09-20', hora: '10:32', consulta: 'Tuve un accidente de tránsito, ¿qué debería hacer?', respuesta: 'En caso de accidente de tránsito: 1) Solicitá el libro de accidentes a la policía. 2) Intercambiá datos del seguro con el otro conductor. 3) Documentá todo con fotos.', tipo: 'Daños y accidentes' },
+  { id: 2, fecha: '2026-09-15', hora: '16:45', consulta: '¿Cuáles son mis derechos como inquilino si el propietario no hace reparaciones?', respuesta: 'Como inquilino tenés derecho a exigir las reparaciones necesarias. Podés intimarlo fehacientemente y, ante incumplimiento, tomar acciones legales.', tipo: 'Derecho Civil' },
+  { id: 3, fecha: '2026-09-08', hora: '09:15', consulta: 'Me despidieron sin causa, ¿qué indemnización me corresponde?', respuesta: 'En Argentina, el despido sin causa genera el derecho a indemnización según el art. 245 de la LCT: 1 mes de sueldo por año trabajado.', tipo: 'Derecho Laboral' },
+  { id: 4, fecha: '2026-08-29', hora: '14:20', consulta: '¿Cómo puedo reclamar una deuda que me deben?', respuesta: 'Dependiendo del monto podés iniciar un juicio de cobro de pesos. Te recomiendo consultar con un abogado civilista para evaluar las opciones.', tipo: 'Derecho Civil' },
+]
+
+export const LAWYERS = [
+  { id: 1, name: 'Dra. María González', specialty: 'Derecho de Familia', location: 'Córdoba Capital', rating: 4.9, reviews: 38, fee: '$18.000', description: 'Especialista en divorcios, adopciones y custodia de menores. Más de 12 años de experiencia en el fuero de familia.', verified: true, photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&h=300&fit=crop&auto=format' },
+  { id: 2, name: 'Dr. Carlos Herrera', specialty: 'Derecho Laboral', location: 'Córdoba Capital', rating: 4.7, reviews: 54, fee: '$15.000', description: 'Defensa de trabajadores y empresas en conflictos laborales, despidos y accidentes de trabajo.', verified: true, photo: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=300&h=300&fit=crop&auto=format' },
+  { id: 3, name: 'Dra. Valentina Romero', specialty: 'Derecho Penal', location: 'Córdoba Capital', rating: 4.8, reviews: 29, fee: '$22.000', description: 'Defensora en causas penales complejas. Experiencia en delitos económicos y defensa en juicio oral.', verified: true, photo: 'https://images.unsplash.com/photo-1662104935883-e9dd0619eaba?w=300&h=300&fit=crop&auto=format' },
+  { id: 4, name: 'Dr. Martín Álvarez', specialty: 'Derecho Civil', location: 'Córdoba Capital', rating: 4.6, reviews: 41, fee: '$12.000', description: 'Contratos, sucesiones, daños y perjuicios. Atención personalizada y seguimiento continuo del caso.', verified: false, photo: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=300&h=300&fit=crop&auto=format' },
+  { id: 5, name: 'Dra. Luciana Fernández', specialty: 'Derecho Comercial', location: 'Córdoba Capital', rating: 4.9, reviews: 67, fee: '$20.000', description: 'Asesoramiento a empresas, contratos comerciales, concursos y quiebras. Consultoría preventiva.', verified: true, photo: 'https://images.unsplash.com/photo-1733348137479-2e726d326d9b?w=300&h=300&fit=crop&auto=format' },
+  { id: 6, name: 'Dr. Rodrigo Sáenz', specialty: 'Derecho Inmobiliario', location: 'Córdoba Capital', rating: 4.5, reviews: 22, fee: '$14.000', description: 'Compraventa de inmuebles, alquileres, escrituración y regularización dominial en Córdoba.', verified: true, photo: 'https://images.unsplash.com/photo-1718209881007-c0ecdfc00f9d?w=300&h=300&fit=crop&auto=format' },
+]
+
+export const SPECIALTIES = ['Derecho de Familia', 'Derecho Laboral', 'Derecho Penal', 'Derecho Civil', 'Derecho Comercial', 'Derecho Inmobiliario', 'Derecho Administrativo', 'Derecho Tributario']

@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
@@ -17,8 +18,8 @@ public class RegistrarCiudadanoRequest {
     private String apellido;
 
     @NotBlank
-    @Size(min = 11, max = 11)
-    private String cuil;
+    @Pattern(regexp = "[0-9]{7,8}", message = "El DNI debe tener 7 u 8 dígitos, sin puntos.")
+    private String dni;
 
     @NotNull
     @Past
@@ -52,12 +53,12 @@ public class RegistrarCiudadanoRequest {
         this.apellido = apellido;
     }
 
-    public String getCuil() {
-        return cuil;
+    public String getDni() {
+        return dni;
     }
 
-    public void setCuil(String cuil) {
-        this.cuil = cuil;
+    public void setDni(String dni) {
+        this.dni = dni;
     }
 
     public LocalDate getFechaNacimiento() {

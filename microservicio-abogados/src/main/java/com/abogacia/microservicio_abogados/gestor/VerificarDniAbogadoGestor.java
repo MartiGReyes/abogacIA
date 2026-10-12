@@ -26,6 +26,13 @@ public class VerificarDniAbogadoGestor {
   a.setResultadoDiditId(r.evento());
   String dni=com.abogacia.microservicio_abogados.didit.DiditVerificadorIdentidad.normalizarDni(r.dni());
   a.setVerificacionDni(r.estado()==VerificadorIdentidad.Estado.APROBADA && !a.getDni().equals(dni)?"RECHAZADA":r.estado().name());
-  a.setDniVerificado("APROBADA".equals(a.getVerificacionDni()));registro.actualizarEstado(a);
+  a.setDniVerificado("APROBADA".equals(a.getVerificacionDni()));
+  // Personal data comes from the approved document, never from the browser; a created account keeps its data.
+  if(a.getDniVerificado() && r.datos()!=null && a.esSolicitud()){
+   var d=r.datos();
+   a.setNombre(d.nombre());a.setApellido(d.apellido());a.setFechaNacimiento(d.fechaNacimiento());
+   a.setGenero(d.genero());a.setDomicilio(d.domicilio());
+  }
+  registro.actualizarEstado(a);
  }
 }

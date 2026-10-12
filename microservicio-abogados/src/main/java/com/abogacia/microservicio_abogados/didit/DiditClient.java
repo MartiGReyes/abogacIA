@@ -36,7 +36,13 @@ public class DiditClient {
     }
     @JsonIgnoreProperties(ignoreUnknown=true)
     public record Reporte(String status,String node_id,String document_type,String issuing_state,
-                         String document_number,String personal_number,String verification_method) {
+                         String document_number,String personal_number,String verification_method,
+                         String first_name,String last_name,String full_name,String date_of_birth,
+                         String gender,String address,String formatted_address) {
+        public Reporte(String status,String node_id,String document_type,String issuing_state,
+                       String document_number,String personal_number,String verification_method){
+            this(status,node_id,document_type,issuing_state,document_number,personal_number,verification_method,null,null,null,null,null,null,null);
+        }
         @Override public String toString(){return "Reporte[datos omitidos]";}
     }
     @JsonIgnoreProperties(ignoreUnknown=true)

@@ -69,7 +69,7 @@ public class CiudadanosController {
         var ciudadano = repository.findById(Long.valueOf(jwt.getSubject()))
                 .filter(c -> "REGISTRADO".equals(c.getEstado().getNombreEstado()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN));
-        return consultarCiudadanoGestor.consultar(ciudadano.getCuil());
+        return consultarCiudadanoGestor.consultar(ciudadano.getDni());
     }
 
     @PostMapping("/confirmar")
@@ -83,39 +83,39 @@ public class CiudadanosController {
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/{cuil}")
-    @PreAuthorize("@cuentaPropia.permite(authentication, #cuil)")
+    @PutMapping("/{dni}")
+    @PreAuthorize("@cuentaPropia.permite(authentication, #dni)")
     public ResponseEntity<CiudadanoResponse> modificar(
-            @PathVariable String cuil,
+            @PathVariable String dni,
             @Valid @RequestBody ModificarCiudadanoRequest request
     ) {
 
         CiudadanoResponse response =
-                modificarCiudadanoGestor.modificar(cuil, request);
+                modificarCiudadanoGestor.modificar(dni, request);
 
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/{cuil}")
-    @PreAuthorize("@cuentaPropia.permite(authentication, #cuil)")
+    @GetMapping("/{dni}")
+    @PreAuthorize("@cuentaPropia.permite(authentication, #dni)")
     public ResponseEntity<CiudadanoResponse> consultar(
-            @PathVariable String cuil
+            @PathVariable String dni
     ) {
 
         CiudadanoResponse response =
-                consultarCiudadanoGestor.consultar(cuil);
+                consultarCiudadanoGestor.consultar(dni);
 
         return ResponseEntity.ok(response);
     }
 
-    @PatchMapping("/{cuil}/baja")
-    @PreAuthorize("@cuentaPropia.permite(authentication, #cuil)")
+    @PatchMapping("/{dni}/baja")
+    @PreAuthorize("@cuentaPropia.permite(authentication, #dni)")
     public ResponseEntity<CiudadanoResponse> darDeBaja(
-            @PathVariable String cuil
+            @PathVariable String dni
     ) {
 
         CiudadanoResponse response =
-                registrarBajaCiudadanoGestor.darDeBaja(cuil);
+                registrarBajaCiudadanoGestor.darDeBaja(dni);
 
         return ResponseEntity.ok(response);
     }

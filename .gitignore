@@ -4,3 +4,4 @@
 
 # Padr?n local con datos personales; mantener fuera del repositorio
 /PADRON-RIO-TERCERO-ENERO.xlsx
+/docker/padron/*.xlsx

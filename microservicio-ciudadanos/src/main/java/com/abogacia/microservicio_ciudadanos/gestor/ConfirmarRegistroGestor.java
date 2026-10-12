@@ -3,9 +3,7 @@ package com.abogacia.microservicio_ciudadanos.gestor;
 import com.abogacia.microservicio_ciudadanos.dto.CiudadanoResponse;
 import com.abogacia.microservicio_ciudadanos.dto.ConfirmarRegistroRequest;
 import com.abogacia.microservicio_ciudadanos.entity.Ciudadano;
-import com.abogacia.microservicio_ciudadanos.entity.Estado;
 import com.abogacia.microservicio_ciudadanos.repository.CiudadanoRepository;
-import com.abogacia.microservicio_ciudadanos.repository.EstadoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,14 +11,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class ConfirmarRegistroGestor {
 
     private final CiudadanoRepository ciudadanoRepository;
-    private final EstadoRepository estadoRepository;
+    private final VerificarDniCiudadanoGestor verificarDniCiudadanoGestor;
 
     public ConfirmarRegistroGestor(
             CiudadanoRepository ciudadanoRepository,
-            EstadoRepository estadoRepository
+            VerificarDniCiudadanoGestor verificarDniCiudadanoGestor
     ) {
         this.ciudadanoRepository = ciudadanoRepository;
-        this.estadoRepository = estadoRepository;
+        this.verificarDniCiudadanoGestor = verificarDniCiudadanoGestor;
     }
 
     @Transactional
@@ -36,15 +34,9 @@ public class ConfirmarRegistroGestor {
                         )
                 );
 
-        Estado estadoRegistrado = estadoRepository
-                .findByNombreEstado("REGISTRADO")
-                .orElseThrow(() ->
-                        new IllegalStateException(
-                                "No existe el estado REGISTRADO."
-                        )
-                );
-
-        ciudadano.setEstado(estadoRegistrado);
+        // La cuenta sigue PENDIENTE hasta que Didit apruebe la identidad.
+        ciudadano.setCorreoConfirmado(true);
+        verificarDniCiudadanoGestor.actualizarEstado(ciudadano);
 
         // Una vez utilizado, eliminamos el código de confirmación.
         ciudadano.setCodigoConfirmacion(null);

@@ -12,7 +12,7 @@ public class DiditConfig {
 
     public DiditConfig(@Value("${DIDIT_API_KEY:}") String key,
             @Value("${DIDIT_WORKFLOW_ID:}") String workflow,
-            @Value("${DIDIT_CALLBACK_URL:http://localhost:5173/verificar-identidad}") String callback,
+            @Value("${DIDIT_CALLBACK_URL:http://localhost:5173/registro-abogado}") String callback,
             @Value("${DIDIT_PRIVACY_READY:false}") boolean ready,
             @Value("${DIDIT_NOTICE_VERSION:}") String version,
             @Value("${DIDIT_DATA_CONTROLLER:}") String responsable,
@@ -41,7 +41,7 @@ public class DiditConfig {
         if(prueba && version.length()+"-dev-test".length()>100)configured=false;
         String text="Responsable: " + responsable + ". Finalidad: verificar tu identidad para el registro profesional en abogacIA. "
                 + "Didit procesará tu DNI argentino, imágenes del documento, captura facial, prueba de vida y comparación facial (Face Match). "
-                + "La captura se realiza en Didit; abogacIA conserva referencias, estados, fechas y constancia de consentimiento, sin medios biométricos. "
+                + "La captura se realiza en Didit; abogacIA conserva referencias, estados, fechas, constancia de consentimiento y los datos leídos de tu documento (nombre, apellido, fecha de nacimiento, género y domicilio) para crear tu cuenta, sin medios biométricos. "
                 + "Conservación y eliminación en Didit: " + retencion + ". Procesamiento y transferencias: " + ubicacion
                 + ". Uso para mejora de modelos: " + modelos + ". Contacto para consultas, retiro del consentimiento y solicitudes sobre tus datos: "
                 + contacto + ". Podés no consentir; tu cuenta permanecerá pendiente y no tendrá acceso profesional. "

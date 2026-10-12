@@ -21,15 +21,15 @@ public class ModificarCiudadanoGestor {
 
     @Transactional
     public CiudadanoResponse modificar(
-            String cuil,
+            String dni,
             ModificarCiudadanoRequest request
     ) {
 
         Ciudadano ciudadano = ciudadanoRepository
-                .findByCuil(cuil)
+                .findByDni(dni)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
-                                "No existe un ciudadano con ese CUIL."
+                                "No existe un ciudadano con ese DNI."
                         )
                 );
 

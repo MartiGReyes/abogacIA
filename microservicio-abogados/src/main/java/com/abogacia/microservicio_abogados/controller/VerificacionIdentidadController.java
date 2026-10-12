@@ -1,6 +1,8 @@
 package com.abogacia.microservicio_abogados.controller;
 
 import com.abogacia.microservicio_abogados.didit.DiditConfig;
+import com.abogacia.microservicio_abogados.dto.*;
+import com.abogacia.microservicio_abogados.gestor.RegistrarAbogadoGestor;
 import com.abogacia.microservicio_abogados.gestor.VerificacionIdentidadGestor;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
@@ -15,19 +17,23 @@ import java.util.*;
 @RequestMapping("/api/abogados/verificacion")
 public class VerificacionIdentidadController {
     private final VerificacionIdentidadGestor gestor;
-    private final DiditConfig config;
+    private final RegistrarAbogadoGestor registro;
     private final Map<String,List<Instant>> intentos=new HashMap<>();
-    public VerificacionIdentidadController(VerificacionIdentidadGestor gestor,DiditConfig config){this.gestor=gestor;this.config=config;}
-    public record AccesoRequest(@NotBlank @Email @Size(max=254) String mail,@NotBlank @Size(max=72) String contrasena){
-        @Override public String toString(){return "AccesoRequest[datos omitidos]";}
-    }
+    public VerificacionIdentidadController(VerificacionIdentidadGestor gestor,RegistrarAbogadoGestor registro){this.gestor=gestor;this.registro=registro;}
     public record ConsentimientoRequest(@AssertTrue boolean consentimiento,@NotBlank @Size(max=100) String avisoVersion) {}
     @GetMapping("/aviso") public DiditConfig.Aviso aviso(){return gestor.aviso();}
     @PostMapping("/cerrar") public Map<String,Boolean> cerrar(@RequestHeader(value="X-Registro-Token",required=false) String token){gestor.cerrar(token);return Map.of("cerrado",true);}
-    @PostMapping("/acceso") public VerificacionIdentidadGestor.Acceso acceso(@Valid @RequestBody AccesoRequest r,HttpServletRequest request){
+    /** Paso 1: inicia la solicitud y entrega el token temporal para Didit y para completar la cuenta. */
+    @PostMapping("/solicitud") @ResponseStatus(HttpStatus.CREATED)
+    public RegistrarAbogadoGestor.Acceso solicitud(@Valid @RequestBody IniciarSolicitudRequest r,HttpServletRequest request){
+        // Starting a request reveals no secret, so the limit only guards against bulk creation from one address.
         limitar("ip:"+request.getRemoteAddr());
-        limitar("mail:"+VerificacionIdentidadGestor.hash(r.mail().trim().toLowerCase(Locale.ROOT)));
-        return gestor.acceso(r.mail(),r.contrasena());
+        return registro.iniciar(r);
+    }
+    /** Paso 4: con la identidad aprobada, crea la cuenta y envía el código de confirmación del correo. */
+    @PostMapping("/cuenta") @ResponseStatus(HttpStatus.CREATED)
+    public AbogadoResponse cuenta(@RequestHeader(value="X-Registro-Token",required=false) String token,@Valid @RequestBody CompletarRegistroRequest r){
+        return registro.completar(gestor.titular(token),token,r);
     }
     @PostMapping("/sesion") public VerificacionIdentidadGestor.Estado sesion(
             @RequestHeader(value="X-Registro-Token",required=false) String token,@Valid @RequestBody ConsentimientoRequest r){

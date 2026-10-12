@@ -1,5 +1,19 @@
 # US06 — Registrar abogado
 
+## Flujo vigente (12/10/2026): Didit primero
+
+Reemplaza el alta en un solo paso (`POST /api/abogados`) y el acceso con correo y contraseña (`/verificacion/acceso`), que se eliminaron. Las secciones siguientes describen la Etapa 1 original; donde contradigan esta sección, vale esta.
+
+| Paso (frontend `/registro-abogado`) | Endpoint (8082) | Qué hace |
+| --- | --- | --- |
+| 1. Datos básicos | POST `/api/abogados/verificacion/solicitud` `{dni, mail, nroCelular}` | Crea una *solicitud* (cuenta sin contraseña) y devuelve un token temporal de 60 minutos. Una solicitud anterior sin cuenta creada con el mismo DNI o correo se reemplaza; una cuenta existente devuelve 409. |
+| 2. Validación Didit | `/aviso`, `/sesion`, `/estado`, `/consultar` con `X-Registro-Token` | Igual que antes. Didit vuelve a `/registro-abogado`. Si aprueba y el DNI del documento coincide, se guardan nombre, apellido, fecha de nacimiento, género y domicilio **leídos del documento** (`first_name`, `last_name`, `date_of_birth`, `gender`, `formatted_address`/`address`) y `/estado` los devuelve en `datos` para que el titular los revise. |
+| 3. Datos profesionales | — (se envían en el paso 4) | Varias especialidades (lista cerrada de 8), matrícula y colegio. Formato provisional de matrícula: `([0-9]{1,3}-)?[0-9]{1,6}`; queda PENDIENTE_REVISION salvo que el padrón local la valide. |
+| 4. Crear cuenta | POST `/api/abogados/verificacion/cuenta` con `X-Registro-Token` | Exige identidad APROBADA. Guarda datos profesionales y contraseña, revoca el token y envía un código de **6 dígitos** (BCrypt, 30 minutos, 5 intentos). Nombre y demás datos personales nunca vienen del navegador. |
+| 5. Confirmar email | POST `/api/abogados/confirmar` `{mail, codigo}` | Sin cambios. |
+
+La cuenta pasa a REGISTRADO solo con correo confirmado, identidad APROBADA y matrícula VALIDADA; mientras no haya fuente de matrículas queda PENDIENTE. El Excel del padrón fue descartado como fuente; `PadronTest` se omite si el archivo no está. El aviso de privacidad informa que se conservan los datos leídos del documento.
+
 ## Alcance y documentación revisada
 
 Se revisaron la consigna adjunta de US06, los diagramas de secuencia, clases y datos aportados en el chat, `AUTENTICACION.md`, el registro/confirmación/seguridad de ciudadanos, autenticación, React y las cinco hojas del archivo `PADRON-RIO-TERCERO-ENERO.xlsx`.
@@ -145,7 +159,7 @@ La creación se reserva bajo bloqueo corto de la cuenta y un lease de treinta se
 
 GET estado muestra el resumen local. POST consultar obtiene desde el backend GET `/v3/session/{id}/decision/`, autenticado con la API Key. El regreso del navegador no modifica ningún resultado. Se comprueban sesión, workflow y vendor_data. Una operación de consulta tiene lease y no se aplica si la sesión o la operación fueron reemplazadas. El fingerprint local de evidencia reemplaza un ID de webhook: esta etapa no recibe eventos.
 
-Para identidad APROBADA se requieren estado global exacto `Approved`, un único documento aprobado, todos los resultados de liveness y face match presentes y aprobados, método document, país ARG y clase Identity Card. El DNI se obtiene de document_number; si personal_number viene informado debe coincidir tras normalización. Un identificador ausente, inválido o contradictorio mantiene PENDIENTE; no se adivina entre DNI y número de trámite. Se aceptan siete u ocho dígitos, o su formato con puntos de miles; no se eliminan letras, signos arbitrarios ni ceros iniciales. Documento aprobado con DNI diferente al registrado produce RECHAZADA. Campos o estados desconocidos/incompletos nunca habilitan.
+Para identidad APROBADA se requieren estado global exacto `Approved`, un único documento aprobado, todos los resultados de liveness y face match presentes y aprobados, método document, país ARG y clase Identity Card. El DNI se obtiene de document_number; si personal_number tiene formato de DNI debe coincidir tras normalización. En DNI argentinos reales Didit informa en personal_number otro identificador (15 dígitos, comprobado el 12/10/2026), que se ignora. Un identificador ausente, inválido o contradictorio mantiene PENDIENTE; no se adivina entre DNI y número de trámite. Se aceptan siete u ocho dígitos, o su formato con puntos de miles; no se eliminan letras, signos arbitrarios ni ceros iniciales. Documento aprobado con DNI diferente al registrado produce RECHAZADA. Campos o estados desconocidos/incompletos nunca habilitan.
 
 La actualización de estado vuelve a validar el padrón local antes de pasar a REGISTRADO. Correo confirmado, identidad APROBADA y matrícula VALIDADA son condiciones simultáneas. BAJA nunca se reactiva. El login central y el Basic interno mantienen su contrato; no hay JWT profesional para una cuenta pendiente.
 

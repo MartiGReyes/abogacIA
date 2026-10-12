@@ -1,88 +1,29 @@
-import { fetchAutenticado } from "./authService";
+import { fetchAutenticado } from "./authService.js";
+import { crearServicioIdentidad } from "./identidadService.js";
 const API_URL = "http://localhost:8080/api/ciudadanos";
 
-export async function registrarCiudadano(ciudadano) {
-    const response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(ciudadano)
-    });
+export const identidadCiudadano = crearServicioIdentidad(`${API_URL}/verificacion`, "ciudadanos", "abogacia-registro-temporal-ciudadano");
 
-    if (!response.ok) {
-        const mensaje = await response.text();
-        throw new Error(mensaje || "Error al registrar ciudadano");
-    }
-
-    return await response.json();
+/** El backend responde {error} o, en validaciones, un mapa campo → mensaje. */
+async function resultado(response, mensajePorDefecto) {
+    const datos = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(datos.error || Object.values(datos)[0] || mensajePorDefecto);
+    return datos;
 }
-
-export async function confirmarRegistro(codigo) {
-    const response = await fetch(`${API_URL}/confirmar`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            codigo: codigo
-        })
-    });
-
-    if (!response.ok) {
-        const mensaje = await response.text();
-        throw new Error(mensaje || "Error al confirmar registro");
+async function enviar(url, opciones, mensajePorDefecto, autenticado = false) {
+    let response;
+    try {
+        response = autenticado ? await fetchAutenticado(url, opciones) : await fetch(url, opciones);
+    } catch (e) {
+        if (e instanceof TypeError) throw new Error("No se pudo conectar con el servicio de ciudadanos.");
+        throw e;
     }
-
-    return await response.json();
+    return resultado(response, mensajePorDefecto);
 }
+const json = (method, datos) => ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos) });
 
-export async function modificarCiudadano(cuil, ciudadano) {
-    const response = await fetchAutenticado(`${API_URL}/${cuil}`, {
-        method: "PUT",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(ciudadano)
-    });
-
-    if (!response.ok) {
-        const mensaje = await response.text();
-        throw new Error(mensaje || "Error al modificar ciudadano");
-    }
-
-    return await response.json();
-}
-
-export async function consultarCiudadano(cuil) {
-    const response = await fetchAutenticado(
-        `http://localhost:8080/api/ciudadanos/${cuil}`
-    );
-
-    if (!response.ok) {
-        const mensaje = await response.text();
-        throw new Error(
-            mensaje || "Error al consultar los datos del ciudadano"
-        );
-    }
-
-    return await response.json();
-}
-
-export async function darDeBajaCiudadano(cuil) {
-    const response = await fetchAutenticado(
-        `http://localhost:8080/api/ciudadanos/${cuil}/baja`,
-        {
-            method: "PATCH"
-        }
-    );
-
-    if (!response.ok) {
-        const mensaje = await response.text();
-        throw new Error(
-            mensaje || "Error al dar de baja al ciudadano"
-        );
-    }
-
-    return await response.json();
-}
+export const registrarCiudadano = ciudadano => enviar(API_URL, json("POST", ciudadano), "Error al registrar ciudadano");
+export const confirmarRegistro = codigo => enviar(`${API_URL}/confirmar`, json("POST", { codigo }), "Error al confirmar registro");
+export const obtenerMisDatos = () => enviar(`${API_URL}/me`, {}, "No se pudieron cargar tus datos.", true);
+export const modificarCiudadano = (dni, ciudadano) => enviar(`${API_URL}/${dni}`, json("PUT", ciudadano), "Error al modificar tus datos", true);
+export const darDeBajaCiudadano = dni => enviar(`${API_URL}/${dni}/baja`, { method: "PATCH" }, "Error al dar de baja la cuenta", true);

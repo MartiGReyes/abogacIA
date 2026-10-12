@@ -40,9 +40,9 @@ public class RegistrarCiudadanoGestor {
 
         validarEdad(request.getFechaNacimiento());
 
-        if (ciudadanoRepository.existsByCuil(request.getCuil())) {
+        if (ciudadanoRepository.existsByDni(request.getDni())) {
             throw new IllegalArgumentException(
-                    "Ya existe un ciudadano registrado con ese CUIL."
+                    "Ya existe un ciudadano registrado con ese DNI."
             );
         }
 
@@ -66,7 +66,7 @@ public class RegistrarCiudadanoGestor {
 
         ciudadano.setNombre(request.getNombre());
         ciudadano.setApellido(request.getApellido());
-        ciudadano.setCuil(request.getCuil());
+        ciudadano.setDni(request.getDni());
         ciudadano.setFechaNacimiento(request.getFechaNacimiento());
         ciudadano.setDireccion(request.getDireccion());
         ciudadano.setMail(request.getMail());

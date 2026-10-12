@@ -18,8 +18,8 @@ public class Ciudadano {
     @Column(nullable = false)
     private String apellido;
 
-    @Column(nullable = false, unique = true, length = 11)
-    private String cuil;
+    @Column(nullable = false, unique = true, length = 8)
+    private String dni;
 
     @Column(nullable = false)
     private LocalDate fechaNacimiento;
@@ -40,8 +40,41 @@ public class Ciudadano {
     @JoinColumn(name = "id_estado", nullable = false)
     private Estado estado;
 
+    // Verificación de identidad con Didit
+    @Column(columnDefinition = "boolean default false")
+    private boolean correoConfirmado;
+
+    private String verificacionDni;
+
+    private String sesionDidit;
+
+    private String resultadoDiditId;
+
+    @Column(unique = true)
+    private String accesoRegistroHash;
+
+    private java.time.Instant accesoRegistroVence;
+
     public Ciudadano() {
     }
+
+    public boolean getCorreoConfirmado() { return correoConfirmado; }
+    public void setCorreoConfirmado(boolean value) { this.correoConfirmado = value; }
+
+    public String getVerificacionDni() { return verificacionDni; }
+    public void setVerificacionDni(String value) { this.verificacionDni = value; }
+
+    public String getSesionDidit() { return sesionDidit; }
+    public void setSesionDidit(String value) { this.sesionDidit = value; }
+
+    public String getResultadoDiditId() { return resultadoDiditId; }
+    public void setResultadoDiditId(String value) { this.resultadoDiditId = value; }
+
+    public String getAccesoRegistroHash() { return accesoRegistroHash; }
+    public void setAccesoRegistroHash(String hash) { this.accesoRegistroHash = hash; }
+
+    public java.time.Instant getAccesoRegistroVence() { return accesoRegistroVence; }
+    public void setAccesoRegistroVence(java.time.Instant fecha) { this.accesoRegistroVence = fecha; }
 
     public Long getIdCiudadano() {
         return idCiudadano;
@@ -67,12 +100,12 @@ public class Ciudadano {
         this.apellido = apellido;
     }
 
-    public String getCuil() {
-        return cuil;
+    public String getDni() {
+        return dni;
     }
 
-    public void setCuil(String cuil) {
-        this.cuil = cuil;
+    public void setDni(String dni) {
+        this.dni = dni;
     }
 
     public LocalDate getFechaNacimiento() {

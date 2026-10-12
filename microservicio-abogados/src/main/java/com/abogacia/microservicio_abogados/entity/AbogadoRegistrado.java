@@ -30,11 +30,9 @@ public class AbogadoRegistrado {
     public Padron getPadron() { return padron; }
     public void setPadron(Padron value) { padron=value; }
 
-    // Datos personales
-    @Column(nullable = false)
+    // Datos personales. Nombre y apellido se leen de Didit, por eso la solicitud existe antes de tenerlos.
     private String nombre;
 
-    @Column(nullable = false)
     private String apellido;
 
     @Column(nullable = false, unique = true, length = 8)
@@ -59,8 +57,7 @@ public class AbogadoRegistrado {
     @Column(length = 2000)
     private String descripcionProfesional;
 
-    // Datos de acceso
-    @Column(nullable = false)
+    // Datos de acceso. Nulo mientras la cuenta es una solicitud sin completar.
     @com.fasterxml.jackson.annotation.JsonIgnore
     private String contrasenaHash;
 
@@ -94,10 +91,16 @@ public class AbogadoRegistrado {
     public String getDomicilio() { return domicilio; }
     public void setDomicilio(String value) { this.domicilio = value; }
 
-    private String especialidad;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "abogado_especialidades", joinColumns = @JoinColumn(name = "id_abogado"))
+    @Column(name = "especialidad")
+    private java.util.Set<String> especialidades = new java.util.LinkedHashSet<>();
 
-    public String getEspecialidad() { return especialidad; }
-    public void setEspecialidad(String value) { this.especialidad = value; }
+    public java.util.Set<String> getEspecialidades() { return especialidades; }
+    public void setEspecialidades(java.util.Collection<String> value) { especialidades.clear(); especialidades.addAll(value); }
+
+    /** Una solicitud pasa a ser cuenta cuando se define la contraseña (paso "Crear cuenta"). */
+    public boolean esSolicitud() { return contrasenaHash == null; }
 
     private java.math.BigDecimal honorarios;
 

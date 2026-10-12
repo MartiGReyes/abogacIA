@@ -46,6 +46,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(a -> a
                     .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/ciudadanos", "/api/ciudadanos/confirmar").permitAll()
+                    // Didit: autorizado por el token temporal X-Registro-Token, no por JWT (la cuenta aún está PENDIENTE).
+                    .requestMatchers("/api/ciudadanos/verificacion/**").permitAll()
                     .requestMatchers("/api/ciudadanos/**").authenticated()
                     .anyRequest().denyAll())
                 .oauth2ResourceServer(o -> o.jwt(Customizer.withDefaults())).build();
@@ -65,7 +67,7 @@ public class SecurityConfig {
         CorsConfiguration cors = new CorsConfiguration();
         cors.setAllowedOrigins(List.of("http://localhost:5173"));
         cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "OPTIONS"));
-        cors.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Registro-Token"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/ciudadanos/**", cors);
         return source;

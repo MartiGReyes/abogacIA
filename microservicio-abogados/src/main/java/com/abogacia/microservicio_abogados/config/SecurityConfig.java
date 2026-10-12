@@ -41,7 +41,7 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
                     .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
-                    .requestMatchers(HttpMethod.POST, "/api/abogados", "/api/abogados/confirmar").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/abogados/confirmar").permitAll()
                     .requestMatchers("/api/abogados/verificacion/**").permitAll()
                     
                     .anyRequest().denyAll())
