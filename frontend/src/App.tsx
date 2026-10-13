@@ -11,6 +11,8 @@ import RegisterCitizenPage from './pages/RegisterCitizen'
 import VerifyCitizenPage from './pages/VerifyCitizen'
 import RegisterLawyerPage from './pages/RegisterLawyer'
 import LawyerPendingPage from './pages/LawyerPending'
+import LawyerProfilePage from './pages/LawyerProfile'
+import { obtenerMiPerfilAbogado } from './services/abogadoService'
 import ProfilePage from './pages/Profile'
 import HistoryPage from './pages/History'
 
@@ -26,15 +28,15 @@ function Shell() {
 
   // La barra muestra el nombre del ciudadano; las cuentas sin perfil muestran su rol.
   useEffect(() => {
-    if (sesion?.rol !== 'CIUDADANO') return
+    if (!sesion || !['CIUDADANO', 'ABOGADO'].includes(sesion.rol)) return
     let activo = true
-    obtenerMisDatos()
-      .then((c: { nombre: string; apellido: string; mail: string }) => { if (activo) setPerfil({ nombre: c.nombre, apellido: c.apellido, email: c.mail }) })
+    const datos = sesion.rol === 'ABOGADO' ? obtenerMiPerfilAbogado() : obtenerMisDatos()
+    datos.then((c: { nombre: string; apellido: string; mail: string }) => { if (activo) setPerfil({ nombre: c.nombre, apellido: c.apellido, email: c.mail }) })
       .catch(() => { if (activo) setPerfil(null) })
     return () => { activo = false }
   }, [sesion, datosVersion])
   const user: User | null = !sesion ? null
-    : sesion.rol === 'CIUDADANO' ? perfil
+    : ['CIUDADANO', 'ABOGADO'].includes(sesion.rol) ? perfil
     : { nombre: sesion.rol === 'ADMIN' ? 'Administrador' : 'Abogado', apellido: '', email: '' }
 
   function handleLogout() { cerrarSesion(); navigate('home') }
@@ -62,7 +64,7 @@ function Shell() {
           <Route path="/verificar-identidad-ciudadano" element={<VerifyCitizenPage navigate={navigate} />} />
           <Route path="/registro-abogado" element={<RegisterLawyerPage navigate={navigate} />} />
           <Route path="/cuenta-profesional" element={<LawyerPendingPage navigate={navigate} />} />
-          <Route path="/mis-datos" element={ciudadano ? <ProfilePage navigate={navigate} onUpdated={() => setDatosVersion(v => v + 1)} /> : <Navigate to="/iniciar-sesion" replace />} />
+          <Route path="/mis-datos" element={ciudadano ? <ProfilePage navigate={navigate} onUpdated={() => setDatosVersion(v => v + 1)} /> : sesion?.rol === 'ABOGADO' ? <LawyerProfilePage navigate={navigate} onUpdated={() => setDatosVersion(v => v + 1)} /> : <Navigate to="/iniciar-sesion" replace />} />
           <Route path="/historial" element={sesion ? <HistoryPage navigate={navigate} /> : <Navigate to="/iniciar-sesion" replace />} />
           <Route path="/verificar-identidad" element={<Navigate to="/registro-abogado" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />

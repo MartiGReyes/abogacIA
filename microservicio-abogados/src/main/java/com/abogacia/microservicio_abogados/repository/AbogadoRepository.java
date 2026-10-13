@@ -22,6 +22,7 @@ public interface AbogadoRepository extends JpaRepository<AbogadoRegistrado, Long
     Optional<AbogadoRegistrado> findByNroMatricula(String nroMatricula);
 
     boolean existsByMail(String mail);
+    boolean existsByMailIgnoreCaseAndIdAbogadoNot(String mail, Long id);
 
     boolean existsByDni(String dni);
 }

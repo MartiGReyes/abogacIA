@@ -259,3 +259,45 @@ Tests creados: `microservicio-abogados/src/test/java/com/abogacia/microservicio_
 Archivos adaptados: `AbogadoRegistrado.java`, `AbogadoRepository.java`, pom y properties de abogados; `LoginController.java` y `LoginTest.java` de autenticación; `App.jsx`, `IniciarSesion.jsx`, `package.json` de React; `AUTENTICACION.md` y `.gitignore`. Los cambios preexistentes del usuario se conservaron. No hubo commits ni pushes.
 
 Pendientes externos: configuración privada y aviso aprobado de Didit, Etapa 2, envío real de correo y prueba manual completa con PostgreSQL/navegador. La confirmación de consola es una herramienta de desarrollo. El padrón local no garantiza vigencia en tiempo real ni proporciona información completa para todos los profesionales.
+
+
+## US07 - Modificar datos del abogado
+
+Ingresar como ABOGADO habilitado y abrir **Mis datos** (`http://localhost:5173/mis-datos`). Se reutilizan las tarjetas, campos, botones y avisos del perfil existente.
+
+- GET `/api/abogados/me`: datos actuales del titular del JWT.
+- PUT `/api/abogados/me`: guarda datos personales, domicilio, especialidades, experiencia, honorarios, ubicacion, direccion y descripcion profesional.
+- Ambos requieren Bearer JWT de rol ABOGADO, cuenta REGISTRADO y devuelven `Cache-Control: no-store`. El microservicio debe recibir el mismo `JWT_SECRET` Base64 que autenticacion.
+- DNI y matricula no se reciben en la actualizacion: enviarlos produce 400. Colegio y provincia permanecen vinculados a la matricula validada y se muestran solo para lectura.
+- Correo duplicado (sin distinguir mayusculas): 409. Campos obligatorios, fecha pasada, telefono, limites de texto, experiencia 0-80 y honorarios no negativos con hasta dos decimales: 400.
+
+### Prueba manual
+
+1. Iniciar los servicios habituales (autenticacion 8081, abogados 8082) y frontend: `cd frontend`, `npm.cmd install`, `npm.cmd run dev`. Usar una cuenta de abogado con correo confirmado, identidad aprobada y matricula validada.
+2. Iniciar sesion como abogado, abrir Mis datos y verificar datos personales y profesionales actuales.
+3. Pulsar Editar, cambiar telefono, domicilio y datos profesionales, Guardar cambios. Verificar el aviso de exito y recargar para comprobar persistencia.
+4. Cambiar datos y pulsar Cancelar: deben restaurarse los datos guardados.
+5. Probar nombre vacio, correo invalido, telefono con letras, fecha futura, experiencia -1 o 81, honorarios negativos o con tres decimales y especialidades vacias: deben aparecer errores y no guardarse.
+6. Usar el correo de otro abogado (tambien en mayusculas): debe informarse que ya esta registrado y conservarse el perfil anterior.
+7. Confirmar que DNI y matricula estan deshabilitados. Desde un cliente HTTP, agregar `dni` o `nroMatricula` a un PUT valido: debe responder 400. Sin JWT: 401; con JWT de ciudadano: 403.
+8. Si cambia el correo, cerrar sesion e ingresar con el correo nuevo y la misma contrasena.
+
+Pruebas automaticas: `cd frontend` y `npm.cmd test`, `npm.cmd run build`, `npm.cmd run lint`. Backend: `mvn.cmd -f microservicio-abogados/pom.xml test` desde la raiz (Java 21).
+
+
+## US08 - Registrar baja de abogado
+
+En **Mis datos**, pulsar **Solicitar baja**. El dialogo permite cancelar (tambien con Escape), o ingresar el correo actual y confirmar. Si la baja se completa, se cierra la sesion y se muestra el aviso de exito en la pantalla de ingreso.
+
+POST `/api/abogados/me/baja`, Bearer JWT de ABOGADO, body `{"mail":"correo-actual@example.com","confirmacion":true}`. Identifica al titular por el JWT, bloquea la fila durante la operacion y exige cuenta REGISTRADO. Persiste el estado interno BAJA (De baja), conserva los datos y revoca el acceso temporal de registro. No admite IDs de otro abogado. Respuesta 200 con estado BAJA; 400 por confirmacion incorrecta o campos no permitidos; 401 sin JWT; 403 por rol o estado no habilitado.
+
+Prueba manual: cancelar y verificar que la cuenta sigue activa; ingresar otro correo y comprobar error; confirmar con el correo actual y comprobar aviso y cierre de sesion; intentar volver a ingresar y verificar el rechazo. Un JWT anterior tampoco permite consultar o modificar el perfil dado de baja. Usar una cuenta descartable: la baja no tiene reactivacion desde el frontend.
+
+
+## US09 - Consultar datos del abogado
+
+Se reutiliza **Mis datos** y GET `/api/abogados/me`. La consulta muestra datos personales y profesionales, genero, estado de cuenta, fecha de registro y estados de correo, identidad y matricula. Los errores de carga permiten reintentar.
+
+El backend busca exclusivamente por el subject del JWT de rol ABOGADO; no permite seleccionar otra cuenta mediante ID, DNI ni correo. Cuenta no habilitada: 403; titular inexistente: 404; sin autenticacion: 401. La respuesta incluye solo los campos explicitos del perfil, sin contrasena, hash, codigos de confirmacion, tokens temporales ni identificadores de Didit, y utiliza Cache-Control: no-store.
+
+Para probar: ingresar como abogado habilitado, abrir Mis datos y revisar las tarjetas de estado y datos. GET con JWT de ciudadano debe responder 403. GET sin JWT: 401. Agregar `?idAbogado=otro-id` conserva los datos del titular; `/api/abogados/me/otro-id` no expone otro perfil. Inspeccionar el JSON para comprobar ausencia de secretos.

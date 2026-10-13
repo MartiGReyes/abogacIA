@@ -58,6 +58,7 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/abogacia_abogados
       DB_USERNAME: ${DB_USERNAME:-postgres}
       DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Defini JWT_SECRET en .env}
       DIDIT_CALLBACK_URL: http://localhost:5173/registro-abogado
       ABOGADOS_CORREO_CONSOLA: ${ABOGADOS_CORREO_CONSOLA:-false}
       PADRON_IMPORTAR: ${PADRON_IMPORTAR:-false}

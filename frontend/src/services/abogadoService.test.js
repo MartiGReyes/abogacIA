@@ -1,7 +1,7 @@
 import { beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { confirmarAbogado, iniciarSolicitudAbogado, crearCuentaAbogado, accesoRegistroVigente } from "./abogadoService.js";
+import { darDeBajaAbogado, confirmarAbogado, iniciarSolicitudAbogado, crearCuentaAbogado, accesoRegistroVigente } from "./abogadoService.js";
 
 beforeEach(() => {
     const stored = new Map();
@@ -42,4 +42,17 @@ test("confirmación identifica correo y código y propaga errores claros", async
     await assert.rejects(confirmarAbogado("ana@example.com", "000000"), /Código inválido/);
     globalThis.fetch = async () => { throw new TypeError("offline"); };
     await assert.rejects(confirmarAbogado("ana@example.com", "1"), /No se pudo conectar/);
+});
+
+test("baja envia confirmacion y bearer y propaga errores sin borrar la sesion", async () => {
+    sessionStorage.setItem("abogacia.sesion", JSON.stringify({token:"jwt-prueba",expiresAt:Date.now()+60000}));
+    globalThis.fetch = async (url, options) => {
+        assert.equal(url,"http://localhost:8082/api/abogados/me/baja");
+        assert.equal(options.method,"POST");
+        assert.equal(options.headers.Authorization,"Bearer jwt-prueba");
+        assert.deepEqual(JSON.parse(options.body),{mail:"prueba@abogado.com",confirmacion:true});
+        return Response.json({error:"Confirmacion incorrecta"},{status:400});
+    };
+    await assert.rejects(darDeBajaAbogado("prueba@abogado.com"),/Confirmacion incorrecta/);
+    assert.ok(sessionStorage.getItem("abogacia.sesion"));
 });

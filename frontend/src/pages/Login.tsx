@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router-dom'
 import { useState } from 'react'
 import { AuthLayout, Field, Notice, type Page } from '../ui'
 import { iniciarSesion } from '../services/authService'
@@ -5,6 +6,7 @@ import { iniciarSesion } from '../services/authService'
 type Tipo = 'CIUDADANO' | 'ABOGADO'
 
 export default function LoginPage({ navigate, admin = false }: { navigate: (p: Page) => void; admin?: boolean }) {
+  const location = useLocation()
   const [tipo, setTipo] = useState<Tipo>('CIUDADANO')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -33,6 +35,7 @@ export default function LoginPage({ navigate, admin = false }: { navigate: (p: P
 
   return (
     <AuthLayout title={admin ? 'Acceso de administrador' : 'Iniciá sesión'} subtitle="Accedé a tu cuenta de AbogacIA.">
+      {location.state?.bajaExitosa && <div className="mb-5"><Notice kind="ok" title="Baja registrada correctamente">Tu cuenta de abogado está De baja y tu sesión se cerró.</Notice></div>}
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         {!admin && (
           <div role="radiogroup" aria-label="Tipo de cuenta" className="flex gap-1 rounded-xl border border-line-strong bg-navy-950 p-1">

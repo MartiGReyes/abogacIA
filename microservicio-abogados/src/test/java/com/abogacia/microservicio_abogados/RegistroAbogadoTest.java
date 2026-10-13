@@ -158,4 +158,72 @@ class RegistroAbogadoTest {
   mvc.perform(get("/api/padron")).andExpect(status().isForbidden());
   mvc.perform(post("/api/abogados").contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isForbidden());
  }
+
+ static final String PERFIL="""
+ {"nombre":"Ana","apellido":"Editada","fechaNacimiento":"1990-01-01","mail":"nuevo@example.com","nroCelular":"3511234567","domicilio":"Calle 3",
+ "especialidades":["Civil"],"aniosExperiencia":5,"honorarios":1500.50,"ubicacion":"Centro","direccionProfesional":"Calle 4","descripcionProfesional":"Asesoramiento"}
+ """;
+ @Test void perfilRequiereAutenticacionYRol() throws Exception {
+  mvc.perform(get("/api/abogados/me")).andExpect(status().isUnauthorized());
+  mvc.perform(get("/api/abogados/me").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject(cuenta().getIdAbogado().toString()).claim("rol","CIUDADANO")))).andExpect(status().isForbidden());
+ }
+ @Test void perfilRechazaCamposInmutablesYFormatos() throws Exception {
+  var auth=org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject(cuenta().getIdAbogado().toString()).claim("rol","ABOGADO"));
+  mvc.perform(put("/api/abogados/me").with(auth).contentType(MediaType.APPLICATION_JSON).content(PERFIL.replace("1500.50","-1"))).andExpect(status().isBadRequest());
+  mvc.perform(put("/api/abogados/me").with(auth).contentType(MediaType.APPLICATION_JSON).content(PERFIL.replace("\"nombre\":", "\"dni\":\"99999999\",\"nombre\":"))).andExpect(status().isBadRequest());
+  mvc.perform(put("/api/abogados/me").with(auth).contentType(MediaType.APPLICATION_JSON).content(PERFIL.replace("\"nombre\":", "\"nroMatricula\":\"123\",\"nombre\":"))).andExpect(status().isBadRequest());
+ }
+
+ @Autowired EstadoRepository estadosPerfil;
+ @Test void perfilGuardaYRechazaCorreoDuplicado() throws Exception {
+  var a=cuenta();a.setContrasenaHash(passwords.encode("clave-segura"));a.setNombre("Ana");a.setApellido("Original");a.setNroMatricula("10-999");
+  a.setEstado(estadosPerfil.findByNombreEstado("REGISTRADO").orElseThrow());abogados.save(a);
+  var auth=org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject(a.getIdAbogado().toString()).claim("rol","ABOGADO"));
+  mvc.perform(get("/api/abogados/me").with(auth)).andExpect(status().isOk()).andExpect(jsonPath("$.dni").value("12345678")).andExpect(jsonPath("$.contrasenaHash").doesNotExist());
+  mvc.perform(put("/api/abogados/me").with(auth).contentType(MediaType.APPLICATION_JSON).content(PERFIL)).andExpect(status().isOk()).andExpect(jsonPath("$.apellido").value("Editada")).andExpect(jsonPath("$.nroMatricula").value("10-999"));
+  assertEquals("Editada",abogados.findById(a.getIdAbogado()).orElseThrow().getApellido());
+  var otro=new AbogadoRegistrado();otro.setDni("87654321");otro.setMail("ocupado@example.com");abogados.save(otro);
+  mvc.perform(put("/api/abogados/me").with(auth).contentType(MediaType.APPLICATION_JSON).content(PERFIL.replace("nuevo@example.com","OCUPADO@example.com"))).andExpect(status().isConflict());
+  assertEquals("nuevo@example.com",abogados.findById(a.getIdAbogado()).orElseThrow().getMail());
+ }
+
+ @Test void bajaConfirmaTitularPersisteYBloqueaAcceso() throws Exception {
+  var a=cuenta();a.setContrasenaHash(passwords.encode("clave-segura"));a.setCorreoConfirmado(true);a.setVerificacionDni("APROBADA");a.setValidacionMatricula("VALIDADA");
+  a.setNroMatricula("10-999");a.setColegioProfesional(com.abogacia.microservicio_abogados.padron.ValidarMatricula.COLEGIO);a.setProvincia("Cordoba");
+  a.setEstado(estadosPerfil.findByNombreEstado("REGISTRADO").orElseThrow());abogados.save(a);
+  var auth=org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject(a.getIdAbogado().toString()).claim("rol","ABOGADO"));
+  String solicitudBaja="{\"mail\":\"ana@example.com\",\"confirmacion\":true}";
+  mvc.perform(post("/api/abogados/me/baja").contentType(MediaType.APPLICATION_JSON).content(solicitudBaja)).andExpect(status().isUnauthorized());
+  mvc.perform(post("/api/abogados/me/baja").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject(a.getIdAbogado().toString()).claim("rol","CIUDADANO"))).contentType(MediaType.APPLICATION_JSON).content(solicitudBaja)).andExpect(status().isForbidden());
+  mvc.perform(post("/api/abogados/me/baja").with(auth).contentType(MediaType.APPLICATION_JSON).content(solicitudBaja.replace("true","false"))).andExpect(status().isBadRequest());
+  mvc.perform(post("/api/abogados/me/baja").with(auth).contentType(MediaType.APPLICATION_JSON).content(solicitudBaja.replace("ana@example.com","otro@example.com"))).andExpect(status().isBadRequest());
+  assertEquals("REGISTRADO",abogados.findById(a.getIdAbogado()).orElseThrow().getEstado().getNombreEstado());
+  mvc.perform(post("/api/abogados/me/baja").with(auth).contentType(MediaType.APPLICATION_JSON).content(solicitudBaja)).andExpect(status().isOk()).andExpect(jsonPath("$.estado").value("BAJA")).andExpect(header().string("Cache-Control","no-store"));
+  var baja=abogados.findById(a.getIdAbogado()).orElseThrow();assertEquals("BAJA",baja.getEstado().getNombreEstado());assertNull(baja.getAccesoRegistroHash());
+  mvc.perform(get("/api/abogados/me").with(auth)).andExpect(status().isForbidden());
+  mvc.perform(put("/api/abogados/me").with(auth).contentType(MediaType.APPLICATION_JSON).content(PERFIL)).andExpect(status().isForbidden());
+  mvc.perform(post("/api/abogados/me/baja").with(auth).contentType(MediaType.APPLICATION_JSON).content(solicitudBaja)).andExpect(status().isForbidden());
+  mvc.perform(post("/api/interno/abogados/validar-credenciales").with(httpBasic("test-service","test-only-password")).contentType(MediaType.APPLICATION_JSON).content("{\"mail\":\"ana@example.com\",\"contrasena\":\"clave-segura\"}")).andExpect(status().isUnauthorized());
+ }
+ @Test void bajaRechazaCuentaPendienteYConfirmacionAusente() throws Exception {
+  var auth=org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject(cuenta().getIdAbogado().toString()).claim("rol","ABOGADO"));
+  mvc.perform(post("/api/abogados/me/baja").with(auth).contentType(MediaType.APPLICATION_JSON).content("{\"mail\":\"ana@example.com\",\"confirmacion\":true}")).andExpect(status().isForbidden());
+  mvc.perform(post("/api/abogados/me/baja").with(auth).contentType(MediaType.APPLICATION_JSON).content("{\"mail\":\"ana@example.com\"}")).andExpect(status().isBadRequest());
+ }
+
+ @Test void consultaSoloDevuelveTitularYExcluyeSecretos() throws Exception {
+  var a=cuenta();a.setContrasenaHash(passwords.encode("clave-segura"));a.setCodigoConfirmacion("codigo-secreto");a.setNombre("Ana");a.setApellido("Titular");
+  a.setNroMatricula("10-999");a.setEstado(estadosPerfil.findByNombreEstado("REGISTRADO").orElseThrow());abogados.save(a);
+  var otro=new AbogadoRegistrado();otro.setDni("87654321");otro.setMail("otro@example.com");otro.setNombre("Otro");abogados.save(otro);
+  var auth=org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject(a.getIdAbogado().toString()).claim("rol","ABOGADO"));
+  mvc.perform(get("/api/abogados/me").with(auth).param("idAbogado",otro.getIdAbogado().toString()).param("dni",otro.getDni()))
+   .andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store"))
+   .andExpect(jsonPath("$.nombre").value("Ana")).andExpect(jsonPath("$.dni").value(a.getDni())).andExpect(jsonPath("$.mail").value("ana@example.com"))
+   .andExpect(jsonPath("$.nroMatricula").value("10-999")).andExpect(jsonPath("$.estado").value("REGISTRADO"))
+   .andExpect(jsonPath("$.contrasena").doesNotExist()).andExpect(jsonPath("$.contrasenaHash").doesNotExist())
+   .andExpect(jsonPath("$.codigoConfirmacion").doesNotExist()).andExpect(jsonPath("$.accesoRegistroHash").doesNotExist())
+   .andExpect(jsonPath("$.sesionDidit").doesNotExist()).andExpect(jsonPath("$.resultadoDiditId").doesNotExist());
+  mvc.perform(get("/api/abogados/me/"+otro.getIdAbogado()).with(auth)).andExpect(status().isNotFound());
+  mvc.perform(get("/api/abogados/me").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject("99999999").claim("rol","ABOGADO")))).andExpect(status().isNotFound());
+ }
 }

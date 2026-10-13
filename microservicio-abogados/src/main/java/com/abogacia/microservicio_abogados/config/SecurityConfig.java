@@ -36,6 +36,16 @@ public class SecurityConfig {
     }
 
     @Bean
+    @Order(2)
+    SecurityFilterChain perfilSecurity(HttpSecurity http) throws Exception {
+        return http.securityMatcher("/api/abogados/me", "/api/abogados/me/**").csrf(csrf -> csrf.disable()).cors(Customizer.withDefaults())
+            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(a -> a.anyRequest().authenticated())
+            .oauth2ResourceServer(o -> o.jwt(Customizer.withDefaults())).build();
+    }
+
+    @Bean
+    @Order(3)
     SecurityFilterChain publicSecurity(HttpSecurity http) throws Exception {
         return http.csrf(csrf -> csrf.disable()).cors(Customizer.withDefaults())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -46,6 +56,15 @@ public class SecurityConfig {
                     
                     .anyRequest().denyAll())
                 .build();
+    }
+
+    @Bean
+    org.springframework.security.oauth2.jwt.JwtDecoder jwtDecoder(@Value("${JWT_SECRET}") String secret) {
+        byte[] key = java.util.Base64.getDecoder().decode(secret);
+        if (key.length < 32) throw new IllegalArgumentException("JWT_SECRET requiere al menos 32 bytes en Base64");
+        var decoder = org.springframework.security.oauth2.jwt.NimbusJwtDecoder.withSecretKey(new javax.crypto.spec.SecretKeySpec(key, "HmacSHA256")).build();
+        decoder.setJwtValidator(org.springframework.security.oauth2.jwt.JwtValidators.createDefaultWithIssuer("abogacia-auth"));
+        return decoder;
     }
 
     @Bean
