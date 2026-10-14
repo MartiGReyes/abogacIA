@@ -10,6 +10,7 @@ import tools.jackson.databind.json.JsonMapper;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -24,6 +25,8 @@ class DiditClientHttpTest {
     private final AtomicReference<Request> captured=new AtomicReference<>();
     private int status=201;
     private String response;
+    private final AtomicInteger pedidos=new AtomicInteger();
+    private int fallasIniciales=0;
     private record Request(String method,String path,String key,String contentType,String accept,String body) {}
 
     @BeforeEach void start() throws Exception {
@@ -38,7 +41,7 @@ class DiditClientHttpTest {
                     new String(exchange.getRequestBody().readAllBytes(),StandardCharsets.UTF_8)));
             byte[] bytes=response.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type","application/json");
-            exchange.sendResponseHeaders(status,bytes.length);
+            exchange.sendResponseHeaders(pedidos.incrementAndGet()<=fallasIniciales?503:status,bytes.length);
             exchange.getResponseBody().write(bytes);exchange.close();
         });
         server.start();
@@ -90,5 +93,17 @@ class DiditClientHttpTest {
         assertEquals(503,exception.getStatusCode().value());assertNull(exception.getCause());
         assertFalse(exception.toString().contains(key));
         assertFalse(exception.toString().contains("synthetic-personal-data"));
+    }
+
+    @Test void transientFailuresAreRetriedUntilDiditAnswers(){
+        fallasIniciales=2;
+        assertEquals(session,client.crear(reference).session_id());
+        assertEquals(3,pedidos.get());
+    }
+
+    @Test void permanentErrorsAreNotRetried(){
+        status=401;
+        assertThrows(ResponseStatusException.class,()->client.crear(reference));
+        assertEquals(1,pedidos.get());
     }
 }

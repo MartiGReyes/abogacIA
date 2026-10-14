@@ -5,6 +5,22 @@ import { confirmarRegistro, identidadCiudadano, registrarCiudadano } from '../se
 
 const BENEFICIOS = ['Buscar y contactar abogados', 'Consultar a Lexi sin límites', 'Guardar tus abogados favoritos', 'Ver el historial de consultas', 'Recibir notificaciones legales']
 
+// El input nativo de fecha usa el idioma del navegador; con texto se garantiza dd/mm/aaaa.
+function mascaraFecha(v: string) {
+  const d = v.replace(/\D/g, '').slice(0, 8)
+  return [d.slice(0, 2), d.slice(2, 4), d.slice(4)].filter(Boolean).join('/')
+}
+
+// Devuelve aaaa-mm-dd si la fecha existe, o null.
+function fechaIso(v: string) {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(v)
+  if (!m) return null
+  const [, dia, mes, anio] = m
+  const f = new Date(Number(anio), Number(mes) - 1, Number(dia))
+  if (f.getFullYear() !== Number(anio) || f.getMonth() !== Number(mes) - 1 || f.getDate() !== Number(dia)) return null
+  return `${anio}-${mes}-${dia}`
+}
+
 export default function RegisterCitizenPage({ navigate }: { navigate: (p: Page) => void }) {
   const [form, setForm] = useState({ nombre: '', apellido: '', dni: '', nacimiento: '', email: '', telefono: '', password: '', confirmPassword: '', terms: false })
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -20,7 +36,10 @@ export default function RegisterCitizenPage({ navigate }: { navigate: (p: Page) 
     if (!form.nombre.trim()) e.nombre = 'Requerido'
     if (!form.apellido.trim()) e.apellido = 'Requerido'
     if (!/^\d{7,8}$/.test(form.dni)) e.dni = 'DNI inválido (7-8 dígitos)'
+    const nacimiento = fechaIso(form.nacimiento)
     if (!form.nacimiento) e.nacimiento = 'Requerido'
+    else if (!nacimiento) e.nacimiento = 'Fecha inválida (dd/mm/aaaa)'
+    else if (nacimiento >= new Date().toLocaleDateString('sv-SE')) e.nacimiento = 'Ingresá una fecha anterior a hoy'
     if (!/\S+@\S+\.\S+/.test(form.email)) e.email = 'Email inválido'
     if (form.password.length < 8) e.password = 'Mínimo 8 caracteres'
     if (form.password !== form.confirmPassword) e.confirmPassword = 'Las contraseñas no coinciden'
@@ -39,7 +58,7 @@ export default function RegisterCitizenPage({ navigate }: { navigate: (p: Page) 
     if (Object.keys(e).length) return
     ejecutar(async () => {
       await registrarCiudadano({
-        nombre: form.nombre.trim(), apellido: form.apellido.trim(), dni: form.dni, fechaNacimiento: form.nacimiento,
+        nombre: form.nombre.trim(), apellido: form.apellido.trim(), dni: form.dni, fechaNacimiento: fechaIso(form.nacimiento)!,
         mail: form.email.trim(), nroCelular: form.telefono.trim(), contrasena: form.password,
       })
       setCodigo(''); setStep('verification')
@@ -83,7 +102,7 @@ export default function RegisterCitizenPage({ navigate }: { navigate: (p: Page) 
   }
 
   function renderField(id: keyof typeof form, label: string, type = 'text', placeholder?: string, autoComplete?: string) {
-    return <Field label={label} id={String(id)} type={type} value={form[id] as string} onChange={v => set(id, id === 'dni' ? v.replace(/\D/g, '').slice(0, 8) : v)} placeholder={placeholder} error={errors[id]} autoComplete={autoComplete} />
+    return <Field label={label} id={String(id)} type={type} value={form[id] as string} onChange={v => set(id, id === 'dni' ? v.replace(/\D/g, '').slice(0, 8) : id === 'nacimiento' ? mascaraFecha(v) : v)} placeholder={placeholder} error={errors[id]} autoComplete={autoComplete} />
   }
 
   return (
@@ -93,7 +112,7 @@ export default function RegisterCitizenPage({ navigate }: { navigate: (p: Page) 
         <p className="mt-3 text-ink-2 leading-relaxed">Registrate para encontrar abogados y realizar consultas de orientación legal.</p>
         <form onSubmit={handleSubmit} className="mt-8 space-y-4" noValidate>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{renderField('nombre', 'Nombre', 'text', 'Juan', 'given-name')}{renderField('apellido', 'Apellido', 'text', 'García', 'family-name')}</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{renderField('dni', 'DNI', 'text', '12345678')}{renderField('nacimiento', 'Fecha de nacimiento', 'date', undefined, 'bday')}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{renderField('dni', 'DNI', 'text', '12345678')}{renderField('nacimiento', 'Fecha de nacimiento', 'text', 'dd/mm/aaaa', 'bday')}</div>
           {renderField('email', 'Email', 'email', 'juan@email.com', 'email')}
           {renderField('telefono', 'Teléfono', 'tel', '+54 351 123 4567', 'tel')}
           {renderField('password', 'Contraseña', 'password', 'Mínimo 8 caracteres', 'new-password')}

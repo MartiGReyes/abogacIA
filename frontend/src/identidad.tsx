@@ -1,6 +1,6 @@
 // Piezas compartidas por los flujos de verificación de identidad con Didit (abogado y ciudadano).
 /* oxlint-disable react/only-export-components -- comparte un helper con los componentes; solo afecta el fast refresh */
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Icon, Notice } from './ui'
 
 export interface Aviso { disponible: boolean; version: string; texto: string }
@@ -12,6 +12,9 @@ export interface EstadoIdentidad {
   seguimiento: string | null
   datos?: { dni: string; nombre: string | null; apellido: string | null; fechaNacimiento: string | null; genero: string | null; domicilio: string | null } | null
 }
+
+// El backend llama a Didit como máximo una vez cada 30 segundos por cuenta; antes devuelve lo guardado o rechaza.
+const INTERVALO_REVISION_MS = 30_000
 
 /** Una sesión de Didit creada que todavía no tiene decisión final. */
 export function esperandoDidit(e: EstadoIdentidad | null) {
@@ -34,6 +37,16 @@ export function DiditStart({ aviso, onStart, onBack, cargando, error, retomarUrl
 }) {
   const [consentimiento, setConsentimiento] = useState(false)
   const [verAviso, setVerAviso] = useState(false)
+  // El backend rechaza otro intento durante 30 segundos desde el anterior; si falla, se espera acá en vez de mostrar "operación en curso".
+  const [reintentoHasta, setReintentoHasta] = useState(0)
+  const [ahora, setAhora] = useState(() => Date.now())
+  const espera = Math.max(0, Math.ceil((reintentoHasta - ahora) / 1000))
+  function iniciar() { const n = Date.now(); setAhora(n); setReintentoHasta(n + INTERVALO_REVISION_MS); onStart(consentimiento) }
+  useEffect(() => {
+    if (!espera) return
+    const t = setInterval(() => setAhora(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [espera])
   return (
     <Card>
       <div className="text-center">
@@ -58,10 +71,12 @@ export function DiditStart({ aviso, onStart, onBack, cargando, error, retomarUrl
         </div>
       )}
 
-      {error && <div className="mt-4"><Notice kind="err" title="No pudimos iniciar la verificación">{error}</Notice></div>}
+      {error && !cargando && <div className="mt-4"><Notice kind="err" title="No pudimos iniciar la verificación">{error}</Notice></div>}
 
-      <button onClick={() => onStart(consentimiento)} disabled={cargando || !aviso?.disponible || !consentimiento} className="btn btn-primary btn-lg w-full mt-6">
-        {cargando ? <><span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />Conectando con Didit…</> : retomarUrl ? 'Retomar en Didit' : 'Continuar en Didit'}
+      <button onClick={iniciar} disabled={cargando || espera > 0 || !aviso?.disponible || !consentimiento} className="btn btn-primary btn-lg w-full mt-6">
+        {cargando ? <><span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />Conectando con Didit… puede tardar unos segundos</>
+          : espera > 0 ? `Reintentar en ${espera} s`
+          : retomarUrl ? 'Retomar en Didit' : error ? 'Reintentar' : 'Continuar en Didit'}
       </button>
       <p className="mt-3 text-center text-[12px] text-ink-3">La verificación se realiza en el entorno seguro de Didit.</p>
       {onBack && <button onClick={onBack} disabled={cargando} className="btn btn-secondary mt-6">Atrás</button>}
@@ -69,16 +84,57 @@ export function DiditStart({ aviso, onStart, onBack, cargando, error, retomarUrl
   )
 }
 
-/** Didit ya tiene la sesión; el resultado llega al backend y se consulta desde acá. */
+/** Didit ya tiene la sesión; se revisa el resultado automáticamente y también se puede pedir a mano. */
 export function DiditWaiting({ estado, onCheck, cargando, error }: { estado: EstadoIdentidad; onCheck: () => void; cargando: boolean; error: string }) {
+  const [proxima, setProxima] = useState(() => Date.now() + INTERVALO_REVISION_MS)
+  const [ahora, setAhora] = useState(() => Date.now())
+  const automatica = estado.seguimiento !== 'LIMITE_CONSULTAS'
+
+  useEffect(() => {
+    if (cargando || !automatica) return
+    const t = setInterval(() => {
+      const n = Date.now()
+      setAhora(n)
+      if (n >= proxima) { setProxima(n + INTERVALO_REVISION_MS); onCheck() }
+    }, 1000)
+    return () => clearInterval(t)
+  }, [cargando, automatica, proxima, onCheck])
+
+  function revisarAhora() { setProxima(Date.now() + INTERVALO_REVISION_MS); onCheck() }
+
+  const segundos = Math.max(0, Math.ceil((proxima - ahora) / 1000))
   return (
     <Card>
-      <Notice kind="wait" title="Esperando el resultado de Didit">Si ya terminaste en Didit, consultá el resultado. Puede tardar unos segundos; también lo revisamos automáticamente.</Notice>
-      {estado.seguimiento === 'DIDIT_NO_DISPONIBLE' && <div className="mt-3"><Notice kind="info" title="Didit no respondió">Volveremos a intentarlo en unos minutos.</Notice></div>}
+      <div className="text-center">
+        <span className="mx-auto w-14 h-14 rounded-2xl border border-line-strong bg-white/[0.04] grid place-items-center text-sky-400">
+          <span className="w-6 h-6 rounded-full border-2 border-current border-t-transparent animate-spin" />
+        </span>
+        <div className="mt-5"><SectionLabel>Verificación en curso</SectionLabel></div>
+        <h2 className="mt-2 text-[26px] font-bold leading-tight">Esperando el resultado de Didit</h2>
+        <p className="mt-3 text-ink-2 text-[15px] leading-relaxed max-w-md mx-auto">
+          {automatica
+            ? <>Quedate en esta página: <strong className="text-ink">revisamos el resultado automáticamente cada 30 segundos</strong> y la pantalla se actualiza sola. No hace falta recargar.</>
+            : 'El seguimiento automático se detuvo.'}
+        </p>
+      </div>
+
+      {automatica && (
+        <p role="status" className="mt-6 rounded-xl border border-line bg-navy-950/60 px-4 py-3 text-center text-[14px] text-ink-2 tabular">
+          {cargando ? 'Revisando ahora…' : `Próxima revisión automática en ${segundos} s`}
+        </p>
+      )}
+
+      {estado.seguimiento === 'DIDIT_NO_DISPONIBLE' && <div className="mt-3"><Notice kind="info" title="Didit no respondió">Seguimos intentando automáticamente.</Notice></div>}
       {estado.seguimiento === 'LIMITE_CONSULTAS' && <div className="mt-3"><Notice kind="err" title="Se agotó el seguimiento automático">Escribinos al contacto del aviso de privacidad para revisar tu caso.</Notice></div>}
       {error && <div className="mt-3"><Notice kind="err" title="No pudimos consultar">{error}</Notice></div>}
-      <button onClick={onCheck} disabled={cargando} className="btn btn-primary btn-lg w-full mt-6">{cargando ? 'Consultando…' : 'Consultar resultado'}</button>
-      {estado.url && <a href={estado.url} className="btn btn-secondary w-full mt-3">Volver a Didit</a>}
+
+      <button onClick={revisarAhora} disabled={cargando} className="btn btn-primary btn-lg w-full mt-6">{cargando ? 'Revisando…' : 'Revisar ahora'}</button>
+      {estado.url && (
+        <>
+          <a href={estado.url} className="btn btn-secondary w-full mt-3">Volver a Didit</a>
+          <p className="mt-3 text-center text-[12px] text-ink-3">¿No terminaste todos los pasos en Didit? Volvé para completarlos.</p>
+        </>
+      )}
     </Card>
   )
 }
