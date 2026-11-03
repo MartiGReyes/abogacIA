@@ -106,4 +106,13 @@ class DiditClientHttpTest {
         assertThrows(ResponseStatusException.class,()->client.crear(reference));
         assertEquals(1,pedidos.get());
     }
+
+    @ParameterizedTest @ValueSource(ints={429,500,503})
+    void singleAttemptCreationNeverRetriesTransientErrors(int error){
+        status=error;
+        var exception=assertThrows(ResponseStatusException.class,()->client.crearSinReintentos(reference));
+        assertEquals(1,pedidos.get());
+        assertEquals(503,exception.getStatusCode().value());
+        assertNull(exception.getCause());
+    }
 }

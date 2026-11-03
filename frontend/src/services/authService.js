@@ -1,4 +1,5 @@
 const KEY = "abogacia.sesion";
+const AUTH_BASE = (import.meta.env?.VITE_AUTH_URL ?? "http://localhost:8081").replace(/\/+$/, "");
 export function cerrarSesion() {
     sessionStorage.removeItem(KEY);
     window.dispatchEvent(new Event("sesion"));
@@ -12,7 +13,7 @@ export function obtenerSesion() {
     return null;
 }
 export async function iniciarSesion(mail, contrasena, tipoCuenta) {
-    const response = await fetch("http://localhost:8081/api/auth/login", {
+    const response = await fetch(`${AUTH_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mail, contrasena, tipoCuenta })

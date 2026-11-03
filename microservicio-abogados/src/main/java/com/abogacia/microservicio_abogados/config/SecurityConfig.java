@@ -52,6 +52,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(a -> a
                     .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/abogados/confirmar").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/abogados/recomendaciones").permitAll()
                     .requestMatchers("/api/abogados/verificacion/**").permitAll()
                     
                     .anyRequest().denyAll())
@@ -68,13 +69,15 @@ public class SecurityConfig {
     }
 
     @Bean
-    CorsConfigurationSource corsConfigurationSource() {
+    CorsConfigurationSource corsConfigurationSource(
+            @Value("${abogados.cors.origin:http://localhost:5173}") String origin) {
         CorsConfiguration cors = new CorsConfiguration();
-        cors.setAllowedOrigins(List.of("http://localhost:5173"));
+        cors.setAllowedOrigins(List.of(origin));
         cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "OPTIONS"));
         cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Registro-Token"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/abogados/**", cors);
+        source.registerCorsConfiguration("/api/admin/abogados/**", cors);
         return source;
     }
 }

@@ -1,0 +1,44 @@
+[
+  {
+    "fixtureId": "abogacia-dev-valentina-torres",
+    "perfilPrueba": true,
+    "nombre": "Valentina", "apellido": "Torres", "dni": "TEST0001",
+    "mail": "valentina.torres@example.com",
+    "especialidades": ["Derecho Laboral"],
+    "ubicacion": "Río Tercero", "provincia": "Córdoba",
+    "descripcionProfesional": "Perfil ficticio para pruebas de abogacIA.",
+    "advertencia": "PERFIL DE PRUEBA — NO ES UN ABOGADO REAL",
+    "nroCelular": null, "nroMatricula": null, "colegioProfesional": null,
+    "estado": "PENDIENTE", "correoConfirmado": false,
+    "dniVerificado": false, "matriculaVerificada": false,
+    "verificacionDni": "PENDIENTE", "validacionMatricula": "PENDIENTE_REVISION"
+  },
+  {
+    "fixtureId": "abogacia-dev-martin-ferreyra",
+    "perfilPrueba": true,
+    "nombre": "Martín", "apellido": "Ferreyra", "dni": "TEST0002",
+    "mail": "martin.ferreyra@example.com",
+    "especialidades": ["Derecho Laboral", "Derecho Civil"],
+    "ubicacion": "Río Tercero", "provincia": "Córdoba",
+    "descripcionProfesional": "Perfil ficticio para pruebas de abogacIA.",
+    "advertencia": "PERFIL DE PRUEBA — NO ES UN ABOGADO REAL",
+    "nroCelular": null, "nroMatricula": null, "colegioProfesional": null,
+    "estado": "PENDIENTE", "correoConfirmado": false,
+    "dniVerificado": false, "matriculaVerificada": false,
+    "verificacionDni": "PENDIENTE", "validacionMatricula": "PENDIENTE_REVISION"
+  },
+  {
+    "fixtureId": "abogacia-dev-lucia-benitez",
+    "perfilPrueba": true,
+    "nombre": "Lucía", "apellido": "Benítez", "dni": "TEST0003",
+    "mail": "lucia.benitez@example.com",
+    "especialidades": ["Defensa del Consumidor"],
+    "ubicacion": "Almafuerte", "provincia": "Córdoba",
+    "descripcionProfesional": "Perfil ficticio para pruebas de abogacIA.",
+    "advertencia": "PERFIL DE PRUEBA — NO ES UN ABOGADO REAL",
+    "nroCelular": null, "nroMatricula": null, "colegioProfesional": null,
+    "estado": "PENDIENTE", "correoConfirmado": false,
+    "dniVerificado": false, "matriculaVerificada": false,
+    "verificacionDni": "PENDIENTE", "validacionMatricula": "PENDIENTE_REVISION"
+  }
+]

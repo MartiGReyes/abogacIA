@@ -1,0 +1,60 @@
+# Standalone project. Do NOT merge with docker-compose.yml.
+name: abogacia-abogados-dev
+
+services:
+  postgres-abogados-dev:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: abogacia_abogados_dev
+      POSTGRES_USER: abogados_dev_owner
+      POSTGRES_PASSWORD: ${ABOGADOS_DEV_OWNER_PASSWORD:?Configurar el archivo de entorno de desarrollo}
+      ABOGADOS_DEV_DB_PASSWORD: ${ABOGADOS_DEV_DB_PASSWORD:?Configurar el archivo de entorno de desarrollo}
+    volumes:
+      - abogados_dev_data:/var/lib/postgresql/data
+      - ./docker/abogados-dev/init:/docker-entrypoint-initdb.d:ro
+    networks: [abogados-dev]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U abogados_dev_owner -d abogacia_abogados_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  abogados-dev:
+    build: ./microservicio-abogados
+    environment:
+      SPRING_PROFILES_ACTIVE: abogados-dev
+      ABOGADOS_DEV_FIXTURES_ENABLED: "true"
+      ABOGADOS_DEV_DB_PASSWORD: ${ABOGADOS_DEV_DB_PASSWORD:?Configurar el archivo de entorno de desarrollo}
+      INTERNAL_USERNAME: abogados-dev-interno
+      INTERNAL_PASSWORD: ${ABOGADOS_DEV_INTERNAL_PASSWORD:?Configurar el archivo de entorno de desarrollo}
+      JWT_SECRET: ${ABOGADOS_DEV_JWT_SECRET:?Configurar el archivo de entorno de desarrollo}
+      DIDIT_API_KEY: ""
+      DIDIT_WORKFLOW_ID: ""
+      DIDIT_PRIVACY_READY: "false"
+      DIDIT_RECONCILIATION_ENABLED: "false"
+      PADRON_IMPORTAR: "false"
+    networks: [abogados-dev]
+    depends_on:
+      postgres-abogados-dev:
+        condition: service_healthy
+
+  frontend-abogados-dev:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/abogados-dev/frontend.Dockerfile
+    ports: ["127.0.0.1:5175:80"]
+    networks: [abogados-dev, lexi-existente]
+    depends_on: [abogados-dev]
+
+networks:
+  abogados-dev:
+    internal: true
+  lexi-existente:
+    external: true
+    name: ${LEXI_EXISTING_NETWORK:-abogacia_default}
+
+volumes:
+  abogados_dev_data:
+    name: abogados_dev_data
+    labels:
+      abogacia.environment: development-only

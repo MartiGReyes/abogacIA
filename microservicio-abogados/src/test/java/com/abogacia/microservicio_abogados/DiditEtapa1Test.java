@@ -78,6 +78,7 @@ class DiditEtapa1Test {
         @Bean @Primary DiditClient clienteLocal(DiditConfig config){
             return new DiditClient(config,"http://127.0.0.1:"+upstream.getAddress().getPort()) {
                 @Override public Sesion crear(String ref){assertFalse(TransactionSynchronizationManager.isActualTransactionActive());return super.crear(ref);}
+                @Override public Sesion crearSinReintentos(String ref){assertFalse(TransactionSynchronizationManager.isActualTransactionActive());return super.crearSinReintentos(ref);}
                 @Override public Decision consultar(String id){assertFalse(TransactionSynchronizationManager.isActualTransactionActive());return super.consultar(id);}
             };
         }
@@ -152,10 +153,14 @@ class DiditEtapa1Test {
         assertThrows(ResponseStatusException.class,()->reiniciado.crear(token,true,reiniciado.aviso().version()));
         assertEquals(1,creates.get());
     }
-    @Test void pruebaLocalFalloConsumeIntentoSinSegundoPost(){
-        var g=prueba(id,Instant.now().plusSeconds(300));httpStatus.set(503);
+    @ParameterizedTest @ValueSource(ints={429,500,503})
+    void pruebaLocalFalloConsumeIntentoSinSegundoPost(int status){
+        var g=prueba(id,Instant.now().plusSeconds(300));httpStatus.set(status);
         assertThrows(ResponseStatusException.class,()->g.crear(token,true,g.aviso().version()));
         assertEquals(1,verificaciones.findById(id).orElseThrow().intentos);
+        assertEquals(1,creates.get());
+        assertEquals("ERROR_CREACION",verificaciones.findById(id).orElseThrow().estado);
+        assertEquals("PENDIENTE",cuenta());
         httpStatus.set(200);
         assertThrows(ResponseStatusException.class,()->g.crear(token,true,g.aviso().version()));
         assertEquals(1,creates.get());

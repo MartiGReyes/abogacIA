@@ -1,0 +1,15 @@
+# Root context is used only by the dedicated EP06 frontend Dockerfile.
+.git
+.m2
+.codex-tmp
+.env
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules
+**/dist
+**/target
+**/*.sql
+**/*.xlsx
+**/*.pdf
+**/*.postman_environment.json

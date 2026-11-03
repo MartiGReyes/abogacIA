@@ -40,6 +40,9 @@ public class RegistrarAbogadoGestor {
   String mail=r.mail().trim().toLowerCase(Locale.ROOT);
   for(var existente:new LinkedHashSet<>(Arrays.asList(abogados.findByDni(r.dni()).orElse(null),abogados.findByMail(mail).orElse(null)))){
    if(existente==null)continue;
+   existente=abogados.findByIdForUpdate(existente.getIdAbogado()).orElseThrow(()->new ResponseStatusException(HttpStatus.CONFLICT,"La solicitud cambió. Volvé a intentar."));
+   if(existente.getEstado()==null || Set.of("BAJA", "SUSPENDIDO").contains(existente.getEstado().getNombreEstado()))
+    throw new ResponseStatusException(HttpStatus.CONFLICT,"La cuenta no permite iniciar otra solicitud.");
    if(!existente.esSolicitud())throw new ResponseStatusException(HttpStatus.CONFLICT,"Ya existe una cuenta profesional con ese DNI o correo.");
    verificaciones.deleteById(existente.getIdAbogado());abogados.delete(existente);
   }
@@ -100,7 +103,7 @@ public class RegistrarAbogadoGestor {
   return Optional.of(AbogadoResponse.de(a));
  }
  public void actualizarEstado(AbogadoRegistrado a){
-  if("BAJA".equals(a.getEstado().getNombreEstado()))return;
+  if(java.util.Set.of("BAJA", "SUSPENDIDO").contains(a.getEstado().getNombreEstado()))return;
   if(a.getNroMatricula()!=null){
    var actual=matriculas.validar(a.getNroMatricula(),a.getDni(),a.getColegioProfesional(),a.getProvincia());
    a.setValidacionMatricula(actual.name());

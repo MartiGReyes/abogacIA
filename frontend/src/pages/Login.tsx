@@ -20,7 +20,7 @@ export default function LoginPage({ navigate, admin = false }: { navigate: (p: P
     setLoading(true)
     try {
       await iniciarSesion(email.trim(), password, admin ? 'ADMIN' : tipo)
-      navigate('home')
+      navigate(admin ? 'admin' : 'home')
     } catch (ex) {
       setError(ex instanceof TypeError ? 'No se pudo conectar con el servicio. Intentá nuevamente.' : (ex as Error).message)
     } finally {

@@ -53,7 +53,7 @@ public class VerificacionIdentidadGestor {
         if(!valid || !coincide || existente==null)throw denied();
         return tx.execute(s->{
             var c=ciudadanos.findByIdForUpdate(existente.getIdCiudadano()).orElseThrow();
-            if(!c.getCorreoConfirmado() || c.getEstado()==null || "BAJA".equals(c.getEstado().getNombreEstado()))throw denied();
+            if(!c.getCorreoConfirmado() || c.getEstado()==null || java.util.Set.of("BAJA", "SUSPENDIDO").contains(c.getEstado().getNombreEstado()))throw denied();
             byte[] bytes=new byte[32];new SecureRandom().nextBytes(bytes);
             String token=Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
             Instant vence=Instant.now().plusSeconds(900);
@@ -65,12 +65,12 @@ public class VerificacionIdentidadGestor {
         if(token==null || !token.matches("[A-Za-z0-9_-]{43}"))throw denied();
         var c=ciudadanos.findByAccesoRegistroHash(hash(token)).orElseThrow(VerificacionIdentidadGestor::denied);
         if(c.getAccesoRegistroVence()==null || !c.getAccesoRegistroVence().isAfter(Instant.now()) || !c.getCorreoConfirmado()
-                || "BAJA".equals(c.getEstado().getNombreEstado()))throw denied();
+                || java.util.Set.of("BAJA", "SUSPENDIDO").contains(c.getEstado().getNombreEstado()))throw denied();
         return c.getIdCiudadano();
     }
     private void comprobarAcceso(Ciudadano c,String token){
         if(!hash(token).equals(c.getAccesoRegistroHash()) || !c.getAccesoRegistroVence().isAfter(Instant.now())
-                || "BAJA".equals(c.getEstado().getNombreEstado()))throw denied();
+                || java.util.Set.of("BAJA", "SUSPENDIDO").contains(c.getEstado().getNombreEstado()))throw denied();
     }
     public Estado estado(String token,boolean consultar){
         Long id=titular(token);
@@ -118,7 +118,7 @@ public class VerificacionIdentidadGestor {
             tx.executeWithoutResult(s->{
                 var c=ciudadanos.findByIdForUpdate(id).orElseThrow();var v=verificaciones.findById(id).orElseThrow();
                 if(!trabajo.operacion().equals(v.operacion))return;
-                if("BAJA".equals(c.getEstado().getNombreEstado())){v.estado="BAJA";v.proximaConsulta=null;v.leaseHasta=null;return;}
+                if(java.util.Set.of("BAJA", "SUSPENDIDO").contains(c.getEstado().getNombreEstado())){v.estado="BAJA";v.proximaConsulta=null;v.leaseHasta=null;return;}
                 v.sesion=sesion.session_id();v.url=sesion.url();v.workflowVersion=sesion.workflow_version();
                 v.estado="Not Started";v.leaseHasta=null;v.errorCodigo=null;v.proximaConsulta=Instant.now().plusSeconds(60);
                 c.setSesionDidit(v.sesion);c.setVerificacionDni("PENDIENTE");
@@ -141,7 +141,7 @@ public class VerificacionIdentidadGestor {
             var c=ciudadanos.findByIdForUpdate(id).orElse(null);if(c==null)return null;
             var v=verificaciones.findById(id).orElse(null);Instant now=Instant.now();
             if(v==null || v.sesion==null)return null;
-            if("BAJA".equals(c.getEstado().getNombreEstado())){v.proximaConsulta=null;return null;}
+            if(java.util.Set.of("BAJA", "SUSPENDIDO").contains(c.getEstado().getNombreEstado())){v.proximaConsulta=null;return null;}
             if(v.leaseHasta!=null && v.leaseHasta.isAfter(now))return null;
             if(v.ultimaConsulta!=null && v.ultimaConsulta.plusSeconds(30).isAfter(now))return null;
             if(periodica && (v.proximaConsulta==null || v.proximaConsulta.isAfter(now)))return null;

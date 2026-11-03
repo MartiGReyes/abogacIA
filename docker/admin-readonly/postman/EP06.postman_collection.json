@@ -1,0 +1,1500 @@
+{
+  "info": {
+    "name": "EP06 — Administración aislada (solo pruebas)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Preparada, no ejecutada. Solo localhost:5180. Contraseñas vacías en el entorno; completar localmente con las elegidas para EP06. No usar credenciales reales. Sin SQL, registro ni llamadas Didit."
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (pm.environment.get('baseUrl') !== 'http://localhost:5180') { pm.execution.skipRequest(); throw new Error('Colección restringida al entorno EP06 localhost:5180.'); }",
+          "if (pm.request.url.toString().includes('/api/auth/login')) { const body=JSON.parse(pm.request.body.raw); const key=body.tipoCuenta==='ADMIN'?'adminPassword':'fixturePassword'; if (!pm.environment.get(key)) { pm.execution.skipRequest(); throw new Error('Completar la contraseña de prueba en el entorno local de Postman.'); } body.contrasena=pm.environment.get(key); pm.request.body.update(JSON.stringify(body)); }"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "01 — Login real de las tres cuentas sintéticas",
+      "item": [
+        {
+          "name": "Login ADMIN de prueba",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mail\": \"admin.ep06@example.com\",\n  \"contrasena\": \"{{adminPassword}}\",\n  \"tipoCuenta\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login ADMIN: 200', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) { const body = pm.response.json(); pm.test('Rol correcto', () => pm.expect(body.rol).to.eql('ADMIN')); pm.environment.set('adminToken', body.token); } else { pm.environment.unset('adminToken'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login CIUDADANO de prueba",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mail\": \"ciudadano001@ep06.example.com\",\n  \"contrasena\": \"{{fixturePassword}}\",\n  \"tipoCuenta\": \"CIUDADANO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login CIUDADANO: 200', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) { const body = pm.response.json(); pm.test('Rol correcto', () => pm.expect(body.rol).to.eql('CIUDADANO')); pm.environment.set('ciudadanoToken', body.token); } else { pm.environment.unset('ciudadanoToken'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login ABOGADO de prueba",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mail\": \"abogado001@ep06.example.com\",\n  \"contrasena\": \"{{fixturePassword}}\",\n  \"tipoCuenta\": \"ABOGADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login ABOGADO: 200', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) { const body = pm.response.json(); pm.test('Rol correcto', () => pm.expect(body.rol).to.eql('ABOGADO')); pm.environment.set('abogadoToken', body.token); } else { pm.environment.unset('abogadoToken'); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 — ADMIN autorizado",
+      "item": [
+        {
+          "name": "Indicadores ciudadanos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos/indicadores"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json();",
+                  "function seguro(value) { if (!value || typeof value !== 'object') return; for (const [key, nested] of Object.entries(value)) { pm.expect(key).not.to.match(/^(dni|mail|nroCelular|contrasenaHash|codigoConfirmacion|token|url|sesion|sesionDidit|referencia|workflow|avisoHash|accesoRegistroHash|resultadoDiditId|domicilio|documentos)$/i); seguro(nested); } }",
+                  "pm.test('DTO sin datos sensibles', () => seguro(data));",
+                  "pm.test('Sin caché', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Identidad ciudadano",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos/1/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json();",
+                  "function seguro(value) { if (!value || typeof value !== 'object') return; for (const [key, nested] of Object.entries(value)) { pm.expect(key).not.to.match(/^(dni|mail|nroCelular|contrasenaHash|codigoConfirmacion|token|url|sesion|sesionDidit|referencia|workflow|avisoHash|accesoRegistroHash|resultadoDiditId|domicilio|documentos)$/i); seguro(nested); } }",
+                  "pm.test('DTO sin datos sensibles', () => seguro(data));",
+                  "pm.test('Sin caché', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Indicadores abogados",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados/indicadores"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json();",
+                  "function seguro(value) { if (!value || typeof value !== 'object') return; for (const [key, nested] of Object.entries(value)) { pm.expect(key).not.to.match(/^(dni|mail|nroCelular|contrasenaHash|codigoConfirmacion|token|url|sesion|sesionDidit|referencia|workflow|avisoHash|accesoRegistroHash|resultadoDiditId|domicilio|documentos)$/i); seguro(nested); } }",
+                  "pm.test('DTO sin datos sensibles', () => seguro(data));",
+                  "pm.test('Sin caché', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listado abogados",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados?pagina=0&tamano=20"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json();",
+                  "function seguro(value) { if (!value || typeof value !== 'object') return; for (const [key, nested] of Object.entries(value)) { pm.expect(key).not.to.match(/^(dni|mail|nroCelular|contrasenaHash|codigoConfirmacion|token|url|sesion|sesionDidit|referencia|workflow|avisoHash|accesoRegistroHash|resultadoDiditId|domicilio|documentos)$/i); seguro(nested); } }",
+                  "pm.test('DTO sin datos sensibles', () => seguro(data));",
+                  "pm.test('Sin caché', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Identidad abogado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados/1/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json();",
+                  "function seguro(value) { if (!value || typeof value !== 'object') return; for (const [key, nested] of Object.entries(value)) { pm.expect(key).not.to.match(/^(dni|mail|nroCelular|contrasenaHash|codigoConfirmacion|token|url|sesion|sesionDidit|referencia|workflow|avisoHash|accesoRegistroHash|resultadoDiditId|domicilio|documentos)$/i); seguro(nested); } }",
+                  "pm.test('DTO sin datos sensibles', () => seguro(data));",
+                  "pm.test('Sin caché', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listado ciudadanos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos?pagina=0&tamano=10"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('DTO m?nimo y paginaci?n', () => { const b=pm.response.json(); pm.expect(b.total).to.eql(18); pm.expect(b.contenido).to.have.lengthOf(10); b.contenido.forEach(c => pm.expect(Object.keys(c).sort()).to.eql(['apellido','estadoCuenta','estadoIdentidad','id','nombre'])); });",
+                  "pm.test('Sin cach?',()=>pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 — Sin autenticación",
+      "item": [
+        {
+          "name": "Indicadores ciudadanos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/ciudadanos/indicadores"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Identidad ciudadano",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/ciudadanos/1/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Indicadores abogados",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/abogados/indicadores"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listado abogados",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/abogados?pagina=0&tamano=20"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Identidad abogado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/abogados/1/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listado ciudadanos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/ciudadanos?pagina=0&tamano=10"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 — Ciudadano denegado",
+      "item": [
+        {
+          "name": "Indicadores ciudadanos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ciudadanoToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos/indicadores"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Identidad ciudadano",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ciudadanoToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos/1/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Indicadores abogados",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ciudadanoToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados/indicadores"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listado abogados",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ciudadanoToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados?pagina=0&tamano=20"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Identidad abogado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ciudadanoToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados/1/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listado ciudadanos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ciudadanoToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos?pagina=0&tamano=10"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 — Abogado denegado",
+      "item": [
+        {
+          "name": "Indicadores ciudadanos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{abogadoToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos/indicadores"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Identidad ciudadano",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{abogadoToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos/1/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Indicadores abogados",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{abogadoToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados/indicadores"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listado abogados",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{abogadoToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados?pagina=0&tamano=20"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Identidad abogado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{abogadoToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados/1/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listado ciudadanos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{abogadoToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos?pagina=0&tamano=10"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 — Token inválido",
+      "item": [
+        {
+          "name": "Indicadores ciudadanos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{invalidToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos/indicadores"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Identidad ciudadano",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{invalidToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos/1/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Indicadores abogados",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{invalidToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados/indicadores"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listado abogados",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{invalidToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados?pagina=0&tamano=20"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Identidad abogado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{invalidToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados/1/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listado ciudadanos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{invalidToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos?pagina=0&tamano=10"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 — Filtros, páginas y datos ausentes",
+      "item": [
+        {
+          "name": "Filtro literal nombre",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados?q=Ana&pagina=0&tamano=10"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('22 abogadas ficticias', () => { const body = pm.response.json(); pm.expect(body.total).to.eql(22); pm.expect(body.contenido).to.have.lengthOf(10); body.contenido.forEach(a => pm.expect(a.nombre).to.include('Ana')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filtro por estado de cuenta",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados?estado=REGISTRADO"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('15 registrados', () => { const b=pm.response.json(); pm.expect(b.total).to.eql(15); b.contenido.forEach(a=>pm.expect(a.estadoCuenta).to.eql('REGISTRADO')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filtro identidad y matrícula",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados?identidad=APROBADA&matricula=VALIDADA"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('Filtros combinados',()=>{const b=pm.response.json();pm.expect(b.total).to.eql(3);b.contenido.forEach(a=>{pm.expect(a.estadoIdentidad).to.eql('APROBADA');pm.expect(a.estadoMatricula).to.eql('VALIDADA');});});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Última página",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados?pagina=2&tamano=20"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('45 registros en 3 páginas',()=>{const b=pm.response.json();pm.expect(b.total).to.eql(45);pm.expect(b.paginas).to.eql(3);pm.expect(b.contenido).to.have.lengthOf(5);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sin resultados",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados?q=NO-EXISTE-EP06"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('Listado vacío',()=>pm.expect(pm.response.json().total).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sin sesión local",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos/5/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('Sin sesión ni fecha estimada',()=>{const b=pm.response.json();pm.expect(b.estadoSesion).to.eql('SIN_SESION');pm.expect(b.inicio).to.eql(null);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cuenta inexistente",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados/99999/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404',()=>pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Página inválida",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados?pagina=-1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400',()=>pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08 ? Selecci?n de cuentas US37",
+      "item": [
+        {
+          "name": "Ciudadanos: b?squeda por nombre",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos?q=ciudadano%20ficticio%2018"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('Cuenta por nombre',()=>{const b=pm.response.json();pm.expect(b.total).to.eql(1);pm.expect(b.contenido[0].nombre).to.eql('Ciudadano Ficticio 18');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ciudadanos: b?squeda por apellido",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos?q=EP06-Sintetico-018"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('Cuenta por apellido',()=>pm.expect(pm.response.json().total).to.eql(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ciudadanos: segunda p?gina",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos?pagina=1&tamano=10"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('P?gina de ocho filas',()=>{const b=pm.response.json();pm.expect(b.total).to.eql(18);pm.expect(b.paginas).to.eql(2);pm.expect(b.pagina).to.eql(1);pm.expect(b.contenido).to.have.lengthOf(8);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ciudadanos: b?squeda sin resultados",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos?q=NO-EXISTE-EP06"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('Sin coincidencias',()=>pm.expect(pm.response.json().contenido).to.have.lengthOf(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ciudadanos: p?gina inv?lida",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos?pagina=-1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400',()=>pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ciudadanos: identidad ficticia 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos/1/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('Resultado local sint?tico',()=>{const b=pm.response.json();pm.expect(b.id).to.eql(1);pm.expect(b.estadoIdentidad).to.eql('APROBADA');pm.expect(b.estadoSesion).to.eql('Approved');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ciudadanos: identidad ficticia 2",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos/2/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('Resultado local sint?tico',()=>{const b=pm.response.json();pm.expect(b.id).to.eql(2);pm.expect(b.estadoIdentidad).to.eql('PENDIENTE');pm.expect(b.estadoSesion).to.eql('In Progress');});",
+                  "pm.test('Fecha ausente no estimada',()=>pm.expect(pm.response.json().ultimaConsulta).to.eql(null));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ciudadanos: identidad ficticia 3",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos/3/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('Resultado local sint?tico',()=>{const b=pm.response.json();pm.expect(b.id).to.eql(3);pm.expect(b.estadoIdentidad).to.eql('RECHAZADA');pm.expect(b.estadoSesion).to.eql('Declined');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ciudadanos: identidad ficticia 4",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos/4/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('Resultado local sint?tico',()=>{const b=pm.response.json();pm.expect(b.id).to.eql(4);pm.expect(b.estadoIdentidad).to.eql('SIN_RESULTADO');pm.expect(b.estadoSesion).to.eql('Expired');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ciudadanos: identidad ficticia 5",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/ciudadanos/5/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('Resultado local sint?tico',()=>{const b=pm.response.json();pm.expect(b.id).to.eql(5);pm.expect(b.estadoIdentidad).to.eql('APROBADA');pm.expect(b.estadoSesion).to.eql('SIN_SESION');});",
+                  "pm.test('Fecha ausente no estimada',()=>pm.expect(pm.response.json().ultimaConsulta).to.eql(null));",
+                  "pm.test('Sin inicio de sesi?n',()=>pm.expect(pm.response.json().inicio).to.eql(null));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "abogados: identidad ficticia 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados/1/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('Resultado local sint?tico',()=>{const b=pm.response.json();pm.expect(b.id).to.eql(1);pm.expect(b.estadoIdentidad).to.eql('APROBADA');pm.expect(b.estadoSesion).to.eql('Approved');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "abogados: identidad ficticia 2",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados/2/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('Resultado local sint?tico',()=>{const b=pm.response.json();pm.expect(b.id).to.eql(2);pm.expect(b.estadoIdentidad).to.eql('PENDIENTE');pm.expect(b.estadoSesion).to.eql('In Progress');});",
+                  "pm.test('Fecha ausente no estimada',()=>pm.expect(pm.response.json().ultimaConsulta).to.eql(null));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "abogados: identidad ficticia 3",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados/3/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('Resultado local sint?tico',()=>{const b=pm.response.json();pm.expect(b.id).to.eql(3);pm.expect(b.estadoIdentidad).to.eql('RECHAZADA');pm.expect(b.estadoSesion).to.eql('Declined');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "abogados: identidad ficticia 4",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados/4/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('Resultado local sint?tico',()=>{const b=pm.response.json();pm.expect(b.id).to.eql(4);pm.expect(b.estadoIdentidad).to.eql('SIN_RESULTADO');pm.expect(b.estadoSesion).to.eql('Expired');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "abogados: identidad ficticia 5",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/abogados/5/identidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('Resultado local sint?tico',()=>{const b=pm.response.json();pm.expect(b.id).to.eql(5);pm.expect(b.estadoIdentidad).to.eql('APROBADA');pm.expect(b.estadoSesion).to.eql('SIN_SESION');});",
+                  "pm.test('Fecha ausente no estimada',()=>pm.expect(pm.response.json().ultimaConsulta).to.eql(null));",
+                  "pm.test('Sin inicio de sesi?n',()=>pm.expect(pm.response.json().inicio).to.eql(null));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

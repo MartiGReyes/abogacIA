@@ -9,9 +9,10 @@ import heroBg from './imports/caratula-V1.png'
 
 export { logoImg, lexiImg, heroBg }
 
-export type Page = 'home' | 'login' | 'register-citizen' | 'register-lawyer' | 'lawyer-pending' | 'verify-citizen' | 'profile' | 'history'
+export type Page = 'home' | 'login' | 'register-citizen' | 'register-lawyer' | 'lawyer-pending' | 'verify-citizen' | 'profile' | 'history' | 'admin'
 
 export const RUTAS: Record<Page, string> = {
+  admin: '/admin',
   home: '/', login: '/iniciar-sesion', 'register-citizen': '/registro', 'register-lawyer': '/registro-abogado',
   'lawyer-pending': '/cuenta-profesional', 'verify-citizen': '/verificar-identidad-ciudadano', profile: '/mis-datos', history: '/historial',
 }

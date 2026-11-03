@@ -18,7 +18,7 @@ import java.util.function.Supplier;
 @Component
 public class DiditClient {
     private static final org.slf4j.Logger log=org.slf4j.LoggerFactory.getLogger(DiditClient.class);
-    // Con conexiones inestables se reintentan las fallas de red y los errores transitorios de Didit.
+    // El flujo general reintenta fallas de red y errores transitorios; la prueba local usa un solo POST.
     // Crear es seguro de repetir: Didit devuelve la misma sesión para el mismo vendor_data.
     private static final int INTENTOS=3;
     private static final long PRESUPUESTO_MS=12_000;
@@ -59,8 +59,15 @@ public class DiditClient {
         @Override public String toString(){return "Decision[datos omitidos]";}
     }
     public Sesion crear(String referencia) {
+        return crear(referencia,INTENTOS);
+    }
+    /** The local real-data trial permits exactly one POST, including ambiguous failures. */
+    public Sesion crearSinReintentos(String referencia) {
+        return crear(referencia,1);
+    }
+    private Sesion crear(String referencia,int maxIntentos) {
         try {
-            var result=conReintentos("crear sesión",()->http.post().uri("/v3/session/").contentType(MediaType.APPLICATION_JSON).body(Map.of("workflow_id",config.workflow,
+            var result=conReintentos("crear sesión",maxIntentos,()->http.post().uri("/v3/session/").contentType(MediaType.APPLICATION_JSON).body(Map.of("workflow_id",config.workflow,
                     "vendor_data",referencia,"callback",config.callback,"language","es",
                     "expected_details",Map.of("id_country","ARG","expected_document_types",List.of("ID"))))
                     .retrieve().body(Sesion.class));
@@ -73,12 +80,12 @@ public class DiditClient {
     public Decision consultar(String sesion) {
         try {
             UUID.fromString(sesion);
-            var result=conReintentos("consultar decisión",()->http.get().uri("/v3/session/{id}/decision/",sesion).retrieve().body(Decision.class));
+            var result=conReintentos("consultar decisión",INTENTOS,()->http.get().uri("/v3/session/{id}/decision/",sesion).retrieve().body(Decision.class));
             if(result==null || !sesion.equals(result.session_id()) || !config.workflow.equals(result.workflow_id())) throw unavailable();
             return result;
         } catch (Exception e) { throw unavailable(); }
     }
-    private static <T> T conReintentos(String operacion,Supplier<T> pedido) {
+    private static <T> T conReintentos(String operacion,int maxIntentos,Supplier<T> pedido) {
         long inicio=System.currentTimeMillis();
         for(int intento=1;;intento++){
             String motivo;boolean transitorio;
@@ -89,9 +96,9 @@ public class DiditClient {
             }
             catch (ResourceAccessException e) { motivo="sin conexión o tiempo de espera agotado";transitorio=true; }
             // Solo se registra la causa: nunca cuerpos, headers ni datos de la sesión.
-            log.warn("Didit {}: {} (intento {}/{}).",operacion,motivo,intento,INTENTOS);
+            log.warn("Didit {}: {} (intento {}/{}).",operacion,motivo,intento,maxIntentos);
             long espera=1000L*intento;
-            if(!transitorio || intento>=INTENTOS || System.currentTimeMillis()-inicio+espera>PRESUPUESTO_MS) throw unavailable();
+            if(!transitorio || intento>=maxIntentos || System.currentTimeMillis()-inicio+espera>PRESUPUESTO_MS) throw unavailable();
             try { Thread.sleep(espera); } catch (InterruptedException e) { Thread.currentThread().interrupt();throw unavailable(); }
         }
     }

@@ -27,12 +27,15 @@ public class ConfirmarRegistroGestor {
     ) {
 
         Ciudadano ciudadano = ciudadanoRepository
-                .findByCodigoConfirmacion(request.getCodigo())
+                .findByCodigoConfirmacionForUpdate(request.getCodigo())
                 .orElseThrow(() ->
                         new IllegalArgumentException(
                                 "El código de confirmación es incorrecto."
                         )
                 );
+
+        if (ciudadano.getEstado() == null || java.util.Set.of("BAJA", "SUSPENDIDO").contains(ciudadano.getEstado().getNombreEstado()))
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "Cuenta no habilitada.");
 
         // La cuenta sigue PENDIENTE hasta que Didit apruebe la identidad.
         ciudadano.setCorreoConfirmado(true);

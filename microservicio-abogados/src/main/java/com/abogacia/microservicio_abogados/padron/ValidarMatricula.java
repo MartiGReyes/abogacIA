@@ -28,5 +28,5 @@ public class ValidarMatricula {
   if(estados.stream().anyMatch(Set.of("INACTIVO","BAJA","FALLECIDO","SUSPENDIDO","CANCELADO","CANCELADA","SUSPENDIDA","SUSPENSIÓN","TRAN/CANCELADA")::contains))return Resultado.INACTIVA;
   return Resultado.PENDIENTE_REVISION;
  }
- static String normalizar(String texto){return Normalizer.normalize(texto,Normalizer.Form.NFD).replaceAll("\\p{M}","").toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9 ]"," ").trim().replaceAll(" +"," ");}
+ static String normalizar(String texto){return Normalizer.normalize(texto == null ? "" : texto,Normalizer.Form.NFD).replaceAll("\\p{M}","").toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9 ]"," ").trim().replaceAll(" +"," ");}
 }

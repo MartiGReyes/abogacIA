@@ -1,6 +1,27 @@
 import { fetchAutenticado } from "./authService.js";
 import { crearServicioIdentidad } from "./identidadService.js";
-const BASE = import.meta.env?.VITE_ABOGADOS_URL || "http://localhost:8082";
+// The isolated development image uses "/" for same-origin Nginx requests.
+const BASE = (import.meta.env?.VITE_ABOGADOS_URL ?? "http://localhost:8082").replace(/\/+$/, "");
+
+export async function obtenerRecomendaciones(especialidad) {
+    const params = new URLSearchParams();
+    if (especialidad) params.set('especialidad', especialidad);
+    let response;
+    try {
+        response = await fetch(`${BASE}/api/abogados/recomendaciones${params.size ? `?${params}` : ''}`, {
+            signal: AbortSignal.timeout(15000),
+        });
+    } catch { throw new Error('No se pudo conectar con el servicio de abogados. Podés reintentar.'); }
+    if (!response.ok) throw new Error('No se pudieron consultar los abogados. Podés reintentar.');
+    const data = await response.json().catch(() => null);
+    if (!Array.isArray(data) || data.some(a => !a || !Number.isSafeInteger(a.idAbogado)
+        || typeof a.nombre !== 'string' || typeof a.apellido !== 'string'
+        || !Array.isArray(a.especialidades) || a.especialidades.some(e => typeof e !== 'string')
+        || typeof a.perfilPrueba !== 'boolean')) {
+        throw new Error('El servicio de abogados devolvió una respuesta inválida.');
+    }
+    return data;
+}
 async function enviar(ruta, datos) {
     let response;
     try {

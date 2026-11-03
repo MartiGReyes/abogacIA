@@ -16,7 +16,7 @@ public class VerificarDniCiudadanoGestor {
     public void aplicar(Ciudadano c, VerificadorIdentidad.Resultado r) {
         if (r == null || !c.getSesionDidit().equals(r.sesion()) || r.evento() == null || r.evento().isBlank() || r.estado() == null)
             throw new IllegalArgumentException("Resultado de identidad inválido.");
-        if ("BAJA".equals(c.getEstado().getNombreEstado())) return;
+        if (java.util.Set.of("BAJA", "SUSPENDIDO").contains(c.getEstado().getNombreEstado())) return;
         c.setResultadoDiditId(r.evento());
         // The DNI read from the physical document must be the registered one.
         boolean coincide = DiditVerificadorIdentidad.coincideDni(c.getDni(), r.dni());

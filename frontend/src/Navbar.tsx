@@ -10,7 +10,7 @@ const NAV_ITEMS: { label: string; target: string }[] = [
   { label: 'Para abogados', target: 'profesionales' },
 ]
 
-export default function Navbar({ navigate, user, onLogout, onSection }: { navigate: (p: Page) => void; user: User | null; onLogout: () => void; onSection: (id: string) => void }) {
+export default function Navbar({ navigate, user, onLogout, onSection, admin = false }: { navigate: (p: Page) => void; user: User | null; onLogout: () => void; onSection: (id: string) => void; admin?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -63,6 +63,7 @@ export default function Navbar({ navigate, user, onLogout, onSection }: { naviga
                     <p className="text-xs text-ink-3 truncate">{user.email}</p>
                   </div>
                   <div className="h-px bg-line my-1" />
+                  {admin && <button role="menuitem" className="btn btn-ghost w-full" onClick={() => { navigate('admin'); setUserMenuOpen(false) }}>Panel administrativo</button>}
                   {[
                     { label: 'Mis datos', icon: 'user' as const, page: 'profile' as Page },
                     { label: 'Historial de consultas', icon: 'list' as const, page: 'history' as Page },
@@ -99,6 +100,7 @@ export default function Navbar({ navigate, user, onLogout, onSection }: { naviga
           <div className="pt-4 grid grid-cols-2 gap-2">
             {user ? (
               <>
+                {admin && <button onClick={() => { navigate('admin'); setMenuOpen(false) }} className="btn btn-secondary col-span-2">Panel administrativo</button>}
                 <button onClick={() => { navigate('profile'); setMenuOpen(false) }} className="btn btn-secondary">Mis datos</button>
                 <button onClick={() => { navigate('history'); setMenuOpen(false) }} className="btn btn-secondary">Historial</button>
                 <button onClick={() => { onLogout(); setMenuOpen(false) }} className="btn btn-ghost col-span-2">Cerrar sesión</button>

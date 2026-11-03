@@ -26,12 +26,15 @@ public class ModificarCiudadanoGestor {
     ) {
 
         Ciudadano ciudadano = ciudadanoRepository
-                .findByDni(dni)
+                .findByDniForUpdate(dni)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
                                 "No existe un ciudadano con ese DNI."
                         )
                 );
+
+        if (ciudadano.getEstado() == null || !"REGISTRADO".equals(ciudadano.getEstado().getNombreEstado()))
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "Cuenta no habilitada.");
 
         if (!ciudadano.getMail().equals(request.getMail())
                 && ciudadanoRepository.existsByMail(request.getMail())) {

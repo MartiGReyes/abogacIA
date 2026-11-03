@@ -1,25 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Avatar, Icon, Rating, TRUST, delay, heroBg, lexiImg, logoImg, useEscape, Wordmark, type Page, type User } from '../ui'
 import { LAWYERS, MOCK_HISTORY, SPECIALTIES } from '../demoData'
+import { conversacionLexi } from '../services/lexiConversation.js'
+import RecomendacionesLexi, { type Recomendacion } from '../RecomendacionesLexi'
 
 // ─── Lexi Chat ────────────────────────────────────────────────────────────────
 
-type ChatMsg = { from: 'lexi' | 'user'; text: string }
-const INITIAL_MSGS: ChatMsg[] = [
-  { from: 'lexi', text: '¡Hola! Soy Lexi. Puedo ayudarte a obtener una orientación inicial sobre tu situación legal. ¿En qué puedo ayudarte hoy?' },
-]
-const LEXI_RESPONSES: Record<string, string> = {
-  default: 'Puedo orientarte sobre los primeros pasos y la información que deberías recopilar. Tené en cuenta que mi respuesta es orientativa y no reemplaza la consulta con un abogado matriculado.',
-  accidente: 'En caso de accidente de tránsito: 1) Solicitá el libro de accidentes a la policía. 2) Intercambiá datos del seguro. 3) Documentá todo con fotos. 4) Consultá con un abogado especialista antes de firmar cualquier acuerdo.',
-  laboral: 'Si tenés un conflicto laboral, conservá todos los recibos de sueldo, contratos y comunicaciones. Un abogado laboralista puede evaluar si corresponde una indemnización o intimación.',
-  familia: 'Los asuntos de familia (divorcio, alimentos, custodia) requieren asesoramiento personalizado. Te recomiendo contactar a una abogada especialista en derecho de familia de nuestro catálogo.',
-}
 const SUGGESTIONS = ['Tuve un accidente de tránsito', 'Me despidieron sin causa', 'Quiero divorciarme']
 
 function LexiChat({ onClose, inputId, fullscreen }: { onClose: () => void; inputId: string; fullscreen?: boolean }) {
-  const [msgs, setMsgs] = useState<ChatMsg[]>(INITIAL_MSGS)
+  const { msgs, typing, error, retry, recomendaciones } = useSyncExternalStore(conversacionLexi.subscribe, conversacionLexi.getSnapshot)
+  const ofertas = recomendaciones as Record<string, Recomendacion>
   const [input, setInput] = useState('')
-  const [typing, setTyping] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
 
   useEscape(true, onClose)
@@ -28,23 +20,13 @@ function LexiChat({ onClose, inputId, fullscreen }: { onClose: () => void; input
     const el = listRef.current
     // Sin animación: un scroll suave acá compite con el de la página y la hace saltar.
     if (el && el.scrollHeight > el.clientHeight) el.scrollTop = el.scrollHeight
-  }, [msgs, typing])
+  }, [msgs, typing, recomendaciones])
 
   function send(value = input) {
-    const text = value.trim(); if (!text || typing) return
-    setMsgs(prev => [...prev, { from: 'user', text }]); setInput('')
-    setTyping(true)
-    setTimeout(() => {
-      const lower = text.toLowerCase()
-      let reply = LEXI_RESPONSES.default
-      if (lower.includes('accidente') || lower.includes('tránsito')) reply = LEXI_RESPONSES.accidente
-      else if (lower.includes('laboral') || lower.includes('trabajo') || lower.includes('despid')) reply = LEXI_RESPONSES.laboral
-      else if (lower.includes('familia') || lower.includes('divorci') || lower.includes('custodia')) reply = LEXI_RESPONSES.familia
-      setTyping(false)
-      setMsgs(prev => [...prev, { from: 'lexi', text: reply }])
-    }, 900)
+    if (!value.trim() || typing) return
+    setInput('')
+    void conversacionLexi.send(value)
   }
-
   return (
     <section aria-label="Chat con Lexi" className={`flex flex-col h-full bg-navy-900 overflow-hidden ${fullscreen ? '' : 'rounded-2xl border border-line shadow-[0_24px_60px_-28px_rgba(0,0,0,0.8)]'}`}>
       <header className="flex items-center gap-3 px-4 h-16 border-b border-line shrink-0">
@@ -57,13 +39,20 @@ function LexiChat({ onClose, inputId, fullscreen }: { onClose: () => void; input
       </header>
 
       <div ref={listRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-5 space-y-3" aria-live="polite">
-        {msgs.map((m, i) => (
-          <div key={i} className={`fade-in flex ${m.from === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <p className={`max-w-[85%] px-3.5 py-2.5 text-[14px] leading-relaxed ${m.from === 'lexi' ? 'bg-navy-800 text-ink rounded-2xl rounded-tl-md' : 'bg-gold-500 text-[#0b1020] font-medium rounded-2xl rounded-tr-md'}`}>
+        {msgs.map(m => (
+          <div key={m.id} className={`fade-in flex flex-col ${m.from === 'user' ? 'items-end' : 'items-start'}`}>
+            <p className={`whitespace-pre-wrap break-words max-w-[85%] px-3.5 py-2.5 text-[14px] leading-relaxed ${m.from === 'lexi' ? 'bg-navy-800 text-ink rounded-2xl rounded-tl-md' : 'bg-gold-500 text-[#0b1020] font-medium rounded-2xl rounded-tr-md'}`}>
               <span className="sr-only">{m.from === 'lexi' ? 'Lexi: ' : 'Vos: '}</span>{m.text}
             </p>
+            {ofertas[m.id] && <RecomendacionesLexi data={ofertas[m.id]} onDecidir={aceptar => void conversacionLexi.decidir(m.id, aceptar)} />}
           </div>
         ))}
+        {error && (
+          <div role="alert" className="rounded-xl border border-line p-3 text-sm">
+            <p>{error}</p>
+            {retry && <button type="button" disabled={typing} onClick={() => void conversacionLexi.retry()} className="btn btn-secondary btn-sm mt-2">Reintentar consulta</button>}
+          </div>
+        )}
         {typing && (
           <div className="fade-in flex" aria-label="Lexi está escribiendo">
             <span className="bg-navy-800 rounded-2xl rounded-tl-md px-4 py-3.5 flex gap-1">

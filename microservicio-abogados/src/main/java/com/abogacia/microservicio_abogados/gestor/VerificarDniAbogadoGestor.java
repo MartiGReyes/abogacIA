@@ -22,7 +22,7 @@ public class VerificarDniAbogadoGestor {
  public void aplicar(com.abogacia.microservicio_abogados.entity.AbogadoRegistrado a,VerificadorIdentidad.Resultado r){
   if(r==null || !a.getSesionDidit().equals(r.sesion()) || r.evento()==null || r.evento().isBlank() || r.estado()==null)
    throw new IllegalArgumentException("Resultado de identidad inválido.");
-  if("BAJA".equals(a.getEstado().getNombreEstado()))return;
+  if(java.util.Set.of("BAJA", "SUSPENDIDO").contains(a.getEstado().getNombreEstado()))return;
   a.setResultadoDiditId(r.evento());
   String dni=com.abogacia.microservicio_abogados.didit.DiditVerificadorIdentidad.normalizarDni(r.dni());
   a.setVerificacionDni(r.estado()==VerificadorIdentidad.Estado.APROBADA && !a.getDni().equals(dni)?"RECHAZADA":r.estado().name());

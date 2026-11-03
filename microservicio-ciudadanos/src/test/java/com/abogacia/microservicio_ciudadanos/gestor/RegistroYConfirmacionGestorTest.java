@@ -145,7 +145,7 @@ class RegistroYConfirmacionGestorTest {
     void confirmacionCorrectaConfirmaCorreoPeroQuedaPendienteHastaDidit() {
         Ciudadano ciudadano = ciudadanoPendiente("123456");
         ConfirmarRegistroRequest request = solicitudConfirmacion("123456");
-        when(ciudadanoRepository.findByCodigoConfirmacion(request.getCodigo()))
+        when(ciudadanoRepository.findByCodigoConfirmacionForUpdate(request.getCodigo()))
                 .thenReturn(Optional.of(ciudadano));
 
         CiudadanoResponse response = confirmarGestor.confirmar(request);
@@ -156,6 +156,18 @@ class RegistroYConfirmacionGestorTest {
         assertNull(ciudadano.getCodigoConfirmacion());
         verify(estadoRepository, never()).findByNombreEstado("REGISTRADO");
         verify(ciudadanoRepository).save(ciudadano);
+    }
+
+    @Test
+    void confirmarCorreoNoPuedeQuitarUnaSuspension() {
+        Ciudadano ciudadano = ciudadanoPendiente("123456");
+        ciudadano.setEstado(new Estado("SUSPENDIDO"));
+        when(ciudadanoRepository.findByCodigoConfirmacionForUpdate("123456"))
+                .thenReturn(Optional.of(ciudadano));
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> confirmarGestor.confirmar(solicitudConfirmacion("123456")));
+        assertEquals("SUSPENDIDO", ciudadano.getEstado().getNombreEstado());
+        verify(ciudadanoRepository, never()).save(any(Ciudadano.class));
     }
 
     @Test

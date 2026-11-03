@@ -70,6 +70,7 @@ public class SecurityConfig {
         cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Registro-Token"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/ciudadanos/**", cors);
+        source.registerCorsConfiguration("/api/admin/ciudadanos/**", cors);
         return source;
     }
 }

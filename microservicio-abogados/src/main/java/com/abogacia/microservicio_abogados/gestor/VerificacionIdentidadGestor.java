@@ -49,12 +49,12 @@ public class VerificacionIdentidadGestor {
         if(token==null || !token.matches("[A-Za-z0-9_-]{43}"))throw denied();
         var a=abogados.findByAccesoRegistroHash(hash(token)).orElseThrow(VerificacionIdentidadGestor::denied);
         if(a.getAccesoRegistroVence()==null || !a.getAccesoRegistroVence().isAfter(Instant.now())
-                || "BAJA".equals(a.getEstado().getNombreEstado()))throw denied();
+                || java.util.Set.of("BAJA", "SUSPENDIDO").contains(a.getEstado().getNombreEstado()))throw denied();
         return a.getIdAbogado();
     }
     private void comprobarAcceso(AbogadoRegistrado a,String token){
         if(!hash(token).equals(a.getAccesoRegistroHash()) || !a.getAccesoRegistroVence().isAfter(Instant.now())
-                || "BAJA".equals(a.getEstado().getNombreEstado()))throw denied();
+                || java.util.Set.of("BAJA", "SUSPENDIDO").contains(a.getEstado().getNombreEstado()))throw denied();
     }
     public Estado estado(String token,boolean consultar){
         Long id=titular(token);
@@ -106,11 +106,11 @@ public class VerificacionIdentidadGestor {
         if(trabajo==null)return resumen(id);
         try {
             if(prueba && !pruebaLocal.permite(id))throw denied();
-            var sesion=client.crear(trabajo.referencia());
+            var sesion=prueba?client.crearSinReintentos(trabajo.referencia()):client.crear(trabajo.referencia());
             tx.executeWithoutResult(s->{
                 var a=abogados.findByIdForUpdate(id).orElseThrow();var v=verificaciones.findById(id).orElseThrow();
                 if(!trabajo.operacion().equals(v.operacion))return;
-                if("BAJA".equals(a.getEstado().getNombreEstado())){v.estado="BAJA";v.proximaConsulta=null;v.leaseHasta=null;return;}
+                if(java.util.Set.of("BAJA", "SUSPENDIDO").contains(a.getEstado().getNombreEstado())){v.estado="BAJA";v.proximaConsulta=null;v.leaseHasta=null;return;}
                 v.sesion=sesion.session_id();v.url=sesion.url();v.workflowVersion=sesion.workflow_version();
                 v.estado="Not Started";v.leaseHasta=null;v.errorCodigo=null;v.proximaConsulta=Instant.now().plusSeconds(60);
                 a.setSesionDidit(v.sesion);a.setVerificacionDni("PENDIENTE");a.setDniVerificado(false);
@@ -137,7 +137,7 @@ public class VerificacionIdentidadGestor {
             var a=abogados.findByIdForUpdate(id).orElse(null);if(a==null)return null;
             var v=verificaciones.findById(id).orElse(null);Instant now=Instant.now();
             if(v==null || v.sesion==null)return null;
-            if("BAJA".equals(a.getEstado().getNombreEstado())){v.proximaConsulta=null;return null;}
+            if(java.util.Set.of("BAJA", "SUSPENDIDO").contains(a.getEstado().getNombreEstado())){v.proximaConsulta=null;return null;}
             if(v.leaseHasta!=null && v.leaseHasta.isAfter(now))return null;
             if(v.ultimaConsulta!=null && v.ultimaConsulta.plusSeconds(30).isAfter(now))return null;
             if(periodica && (v.proximaConsulta==null || v.proximaConsulta.isAfter(now)))return null;

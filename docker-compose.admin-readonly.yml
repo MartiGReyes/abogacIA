@@ -1,0 +1,97 @@
+# Independent project. Never combine with either existing Compose file.
+name: abogacia-admin-readonly-test
+
+x-readonly: &readonly
+  SPRING_PROFILES_ACTIVE: admin-gestion-test
+  SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+  SPRING_SQL_INIT_MODE: never
+  SPRING_JPA_SHOW_SQL: "false"
+  INTERNAL_USERNAME: ep06-test-internal
+  INTERNAL_PASSWORD: ${EP06_INTERNAL_PASSWORD:?Preparar credenciales EP06 independientes}
+  JWT_SECRET: ${EP06_JWT_SECRET:?Preparar credenciales EP06 independientes}
+  DIDIT_API_KEY: ""
+  DIDIT_WORKFLOW_ID: ""
+  DIDIT_PRIVACY_READY: "false"
+  DIDIT_RECONCILIATION_ENABLED: "false"
+  PADRON_IMPORTAR: "false"
+  ABOGADOS_DEV_FIXTURES_ENABLED: "false"
+
+services:
+  postgres-admin-test:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ep06_test_control
+      POSTGRES_USER: ep06_test_owner
+      POSTGRES_PASSWORD: ${EP06_OWNER_PASSWORD:?Preparar credenciales EP06 independientes}
+      EP06_CIUDADANOS_DB_PASSWORD: ${EP06_CIUDADANOS_DB_PASSWORD:?Preparar credenciales EP06 independientes}
+      EP06_ABOGADOS_DB_PASSWORD: ${EP06_ABOGADOS_DB_PASSWORD:?Preparar credenciales EP06 independientes}
+      EP06_FIXTURE_HASH: ${EP06_FIXTURE_HASH:?Preparar hash BCrypt de prueba}
+    volumes:
+      - ep06_admin_test_data:/var/lib/postgresql/data
+      - ./docker/admin-readonly/init:/docker-entrypoint-initdb.d:ro
+    networks: [ep06-private]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ep06_test_owner -d ep06_test_control"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  ciudadanos-admin-test:
+    build: ./microservicio-ciudadanos
+    environment:
+      <<: *readonly
+      DB_URL: jdbc:postgresql://postgres-admin-test:5432/ep06_ciudadanos_test
+      DB_USERNAME: ep06_ciudadanos_reader
+      DB_PASSWORD: ${EP06_CIUDADANOS_DB_PASSWORD}
+    networks: [ep06-private]
+    depends_on:
+      postgres-admin-test:
+        condition: service_healthy
+
+  abogados-admin-test:
+    build: ./microservicio-abogados
+    environment:
+      <<: *readonly
+      DB_URL: jdbc:postgresql://postgres-admin-test:5432/ep06_abogados_test
+      DB_USERNAME: ep06_abogados_reader
+      DB_PASSWORD: ${EP06_ABOGADOS_DB_PASSWORD}
+      ABOGADOS_CORREO_CONSOLA: "false"
+    networks: [ep06-private]
+    depends_on:
+      postgres-admin-test:
+        condition: service_healthy
+
+  autenticacion-admin-test:
+    build: ./microservicio-autenticacion
+    environment:
+      INTERNAL_USERNAME: ep06-test-internal
+      INTERNAL_PASSWORD: ${EP06_INTERNAL_PASSWORD}
+      JWT_SECRET: ${EP06_JWT_SECRET}
+      JWT_TTL_SECONDS: "900"
+      CIUDADANOS_URL: http://ciudadanos-admin-test:8080
+      ABOGADOS_URL: http://abogados-admin-test:8082
+      ADMIN_MAIL: admin.ep06@example.com
+      ADMIN_PASSWORD_HASH: ${EP06_ADMIN_HASH:?Preparar hash BCrypt ADMIN de prueba}
+    networks: [ep06-private]
+    depends_on: [ciudadanos-admin-test, abogados-admin-test]
+
+  frontend-admin-test:
+    build:
+      context: .
+      dockerfile: docker/admin-readonly/frontend.Dockerfile
+    ports: ["127.0.0.1:5180:80"]
+    networks: [ep06-private, ep06-web]
+    depends_on: [autenticacion-admin-test]
+
+networks:
+  ep06-private:
+    internal: true
+  ep06-web:
+    driver: bridge
+    internal: false
+
+volumes:
+  ep06_admin_test_data:
+    name: ep06_admin_readonly_test_data
+    labels:
+      abogacia.environment: ep06-synthetic-only

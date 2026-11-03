@@ -15,6 +15,8 @@ import LawyerProfilePage from './pages/LawyerProfile'
 import { obtenerMiPerfilAbogado } from './services/abogadoService'
 import ProfilePage from './pages/Profile'
 import HistoryPage from './pages/History'
+import { AdminUsuarios, AdminPadron } from './pages/AdminGestion'
+import { AdminProtegido, AdminPanel, AdminAbogados, AdminIdentidad } from './pages/Admin'
 
 interface Sesion { rol: 'CIUDADANO' | 'ABOGADO' | 'ADMIN'; idUsuario: string }
 
@@ -53,12 +55,17 @@ function Shell() {
 
   return (
     <div className="min-h-screen bg-navy-950 text-ink">
-      <Navbar navigate={navigate} user={user} onLogout={handleLogout} onSection={goToSection} />
+      <Navbar navigate={navigate} user={user} onLogout={handleLogout} onSection={goToSection} admin={sesion?.rol === 'ADMIN'} />
       <main>
         <Routes>
           <Route path="/" element={<HomePage navigate={navigate} user={user} lexiSignal={lexiSignal} onLexiHandled={() => setLexiSignal(0)} />} />
           <Route path="/iniciar-sesion" element={<LoginPage navigate={navigate} />} />
           <Route path="/admin/iniciar-sesion" element={<LoginPage navigate={navigate} admin />} />
+          <Route path="/admin" element={<AdminProtegido><AdminPanel /></AdminProtegido>} />
+          <Route path="/admin/abogados" element={<AdminProtegido><AdminAbogados /></AdminProtegido>} />
+          <Route path="/admin/usuarios" element={<AdminProtegido><AdminUsuarios /></AdminProtegido>} />
+          <Route path="/admin/padron" element={<AdminProtegido><AdminPadron /></AdminProtegido>} />
+          <Route path="/admin/identidad" element={<AdminProtegido><AdminIdentidad /></AdminProtegido>} />
           <Route path="/registro" element={<RegisterCitizenPage navigate={navigate} />} />
           {/* Didit vuelve a estas dos URLs al terminar la verificación. */}
           <Route path="/verificar-identidad-ciudadano" element={<VerifyCitizenPage navigate={navigate} />} />
