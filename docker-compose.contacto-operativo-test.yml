@@ -1,0 +1,99 @@
+# Standalone project: never combine with another Compose file.
+name: abogacia-contacto-operativo-test
+services:
+  postgres-operativa:
+    image: postgres:17
+    command: [postgres, -c, log_statement=none, -c, log_min_error_statement=panic, -c, log_parameter_max_length_on_error=0]
+    environment:
+      POSTGRES_DB: contacto_operativo_test
+      POSTGRES_USER: operativa_owner
+      POSTGRES_PASSWORD: ${OP_OWNER_PASSWORD:?Ejecutar Preparar-ContactoOperativo.ps1}
+      OP_DB_PASSWORD: ${OP_DB_PASSWORD:?Ejecutar Preparar-ContactoOperativo.ps1}
+    volumes:
+      - operativa_test_data:/var/lib/postgresql/data
+      - ./docker/contacto-operativo-test/init:/docker-entrypoint-initdb.d:ro
+    networks: [operativa-private]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U operativa_owner -d contacto_operativo_test']
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  abogados-operativa:
+    build: ./microservicio-abogados
+    environment:
+      SPRING_PROFILES_ACTIVE: contacto-operativo-test
+      ABOGADOS_CUENTAS_PRUEBA_ENABLED: 'true'
+      ABOGADOS_LOCAL_RUNTIME: cuentas-autenticadas-loopback
+      CUENTAS_TEST_PASSWORD_FILE: /run/secrets/cuentas_password
+      DB_URL: jdbc:postgresql://postgres-operativa:5432/contacto_operativo_test
+      DB_USERNAME: operativa_runtime
+      DB_PASSWORD: ${OP_DB_PASSWORD}
+      INTERNAL_USERNAME: operativa-internal
+      INTERNAL_PASSWORD: ${OP_INTERNAL_PASSWORD:?Ejecutar preparador}
+      JWT_SECRET: ${OP_JWT_SECRET:?Ejecutar preparador}
+      OP_ENCRYPTION_KEY_FILE: /run/secrets/operativa_key
+      OP_OPERATOR_CODE_FILE: /run/secrets/operativa_operator
+      OP_LEXI_URL: http://host.docker.internal:5678/webhook/orientacion-legal
+      DIDIT_API_KEY: ''
+      DIDIT_WORKFLOW_ID: ''
+      DIDIT_PRIVACY_READY: 'false'
+      DIDIT_RECONCILIATION_ENABLED: 'false'
+      PADRON_IMPORTAR: 'false'
+      ABOGADOS_CORREO_CONSOLA: 'false'
+      ABOGADOS_DEV_FIXTURES_ENABLED: 'false'
+    secrets: [operativa_key, operativa_operator, cuentas_password]
+    networks: [operativa-private, operativa-egress]
+    depends_on:
+      postgres-operativa:
+        condition: service_healthy
+  ciudadanos-operativa:
+    build: ./microservicio-ciudadanos
+    environment:
+      SPRING_PROFILES_ACTIVE: cuentas-contacto-test
+      DB_URL: jdbc:postgresql://postgres-operativa:5432/contacto_operativo_test?currentSchema=ciudadanos_cuenta
+      DB_USERNAME: ciudadanos_runtime
+      DB_PASSWORD: ${OP_DB_PASSWORD}
+      INTERNAL_USERNAME: operativa-internal
+      INTERNAL_PASSWORD: ${OP_INTERNAL_PASSWORD}
+      JWT_SECRET: ${OP_JWT_SECRET}
+      CUENTAS_TEST_PASSWORD_FILE: /run/secrets/cuentas_password
+      DIDIT_API_KEY: ''
+      DIDIT_WORKFLOW_ID: ''
+      DIDIT_PRIVACY_READY: 'false'
+      DIDIT_RECONCILIATION_ENABLED: 'false'
+    secrets: [cuentas_password]
+    networks: [operativa-private]
+    depends_on:
+      postgres-operativa:
+        condition: service_healthy
+  auth-operativa:
+    build: ./microservicio-autenticacion
+    environment:
+      INTERNAL_USERNAME: operativa-internal
+      INTERNAL_PASSWORD: ${OP_INTERNAL_PASSWORD}
+      JWT_SECRET: ${OP_JWT_SECRET}
+      ABOGADOS_URL: http://abogados-operativa:8082
+      CIUDADANOS_URL: http://ciudadanos-operativa:8080
+    networks: [operativa-private]
+    depends_on: [abogados-operativa, ciudadanos-operativa]
+  frontend-operativa:
+    build:
+      context: .
+      dockerfile: docker/contacto-operativo-test/frontend.Dockerfile
+    ports: ['127.0.0.1:5182:80']
+    networks: [operativa-private, operativa-web]
+    depends_on: [abogados-operativa, ciudadanos-operativa, auth-operativa]
+networks:
+  operativa-private:
+    internal: true
+  operativa-egress: {}
+  operativa-web: {}
+volumes:
+  operativa_test_data: {}
+secrets:
+  cuentas_password:
+    file: ../.private-contacto-operativo/password-cuentas.txt
+  operativa_key:
+    file: ${OP_KEY_PATH:?Clave fuera del repositorio}
+  operativa_operator:
+    file: ${OP_OPERATOR_PATH:?Acceso fuera del repositorio}

@@ -30,10 +30,13 @@ import java.util.*;
 
 public class PerfilAbogadoController {
 
+ @org.springframework.beans.factory.annotation.Autowired(required=false) private com.abogacia.microservicio_abogados.operativa.CuentaPruebaService pruebas;
  private final AbogadoRepository abogados;
 
  private final EstadoRepository estados;
- public PerfilAbogadoController(AbogadoRepository abogados, EstadoRepository estados) {this.abogados=abogados;this.estados=estados;}
+ private final com.abogacia.microservicio_abogados.contacto.AutorizacionWhatsApp whatsapp;
+ private final com.abogacia.microservicio_abogados.contacto.ProfesionalContactable contactable;
+ public PerfilAbogadoController(AbogadoRepository abogados, EstadoRepository estados,com.abogacia.microservicio_abogados.contacto.AutorizacionWhatsApp whatsapp,com.abogacia.microservicio_abogados.contacto.ProfesionalContactable contactable) {this.abogados=abogados;this.estados=estados;this.whatsapp=whatsapp;this.contactable=contactable;}
 
  private AbogadoRegistrado titular(Jwt jwt, boolean bloquear) {
 
@@ -47,6 +50,7 @@ public class PerfilAbogadoController {
 
   if(a.esSolicitud() || a.getEstado()==null || !"REGISTRADO".equals(a.getEstado().getNombreEstado())) throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Cuenta no habilitada.");
 
+  if(com.abogacia.microservicio_abogados.operativa.CuentaPruebaService.marcada(a) && (pruebas==null || !pruebas.cuenta(a))) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
   return a;
 
  }
@@ -55,6 +59,9 @@ public class PerfilAbogadoController {
 
   Map<String,Object> r=new LinkedHashMap<>();
   r.put("estado",a.getEstado().getNombreEstado());
+  r.put("whatsappAutorizado",whatsapp.permitido(a.getIdAbogado()));
+  try { validarWhatsApp(a); r.put("whatsappPuedeActivar",true); r.put("whatsappBloqueo",""); }
+  catch(ResponseStatusException e){r.put("whatsappPuedeActivar",false);r.put("whatsappBloqueo",e.getReason());}
   r.put("fechaRegistro",a.getFechaRegistro());
   r.put("genero",a.getGenero());
   r.put("correoConfirmado",a.getCorreoConfirmado());
@@ -70,6 +77,7 @@ public class PerfilAbogadoController {
 
   r.put("ubicacion",a.getUbicacion()); r.put("direccionProfesional",a.getDireccionProfesional()); r.put("descripcionProfesional",a.getDescripcionProfesional()); r.put("verificacionDni",a.getVerificacionDni());
 
+  r.put("cuentaPrueba",false); if(pruebas!=null && pruebas.cuenta(a))pruebas.completarPerfil(a,r);
   return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(r);
 
  }
@@ -88,7 +96,9 @@ public class PerfilAbogadoController {
 
   a.setNombre(r.nombre().trim()); a.setApellido(r.apellido().trim()); a.setFechaNacimiento(r.fechaNacimiento()); a.setMail(mail);
 
-  a.setNroCelular(r.nroCelular().trim()); a.setDomicilio(r.domicilio().trim());
+  if(pruebas!=null && pruebas.cuenta(a))pruebas.guardarTelefono(a,r.nroCelular());
+  else { if(!Objects.equals(a.getNroCelular(),r.nroCelular().trim()))whatsapp.revocar(a.getIdAbogado()); a.setNroCelular(r.nroCelular().trim()); }
+  a.setDomicilio(r.domicilio().trim());
 
   a.setEspecialidades(r.especialidades().stream().map(String::trim).distinct().toList()); a.setAniosExperiencia(r.aniosExperiencia()); a.setHonorarios(r.honorarios());
 
@@ -99,8 +109,44 @@ public class PerfilAbogadoController {
  }
 
 
+ public record DniPruebaRequest(@NotBlank @Pattern(regexp="[0-9]{7,8}") String dni){@Override public String toString(){return "DniPruebaRequest[omitido]";}}
+ @PostMapping("/dni-prueba") @Transactional
+ public ResponseEntity<Map<String,Object>> dniPrueba(@AuthenticationPrincipal Jwt jwt,@Valid @RequestBody DniPruebaRequest request){
+  var a=titular(jwt,true);if(pruebas==null || !pruebas.cuenta(a))throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+  pruebas.guardarDni(a,request.dni());return respuesta(a);
+ }
  public record BajaRequest(@NotNull Boolean confirmacion, @NotBlank @Email @Size(max=255) String mail) {
   @Override public String toString() { return "BajaRequest[datos omitidos]"; }
+ }
+ public record WhatsAppRequest(@NotNull Boolean permitido) {}
+ private void validarWhatsApp(AbogadoRegistrado a){
+  if(pruebas!=null && pruebas.cuenta(a)){
+   try{com.abogacia.microservicio_abogados.operativa.DatosOperativos.telefono(pruebas.telefono(a));}catch(IllegalArgumentException e){throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Guardá un celular argentino válido en Contacto por WhatsApp antes de activar la opción.");}
+   if(pruebas.dni(a).isBlank())throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Guardá tu DNI en la sección de cuenta de prueba antes de activar WhatsApp.");
+  }else{
+   if(!contactable.habilitado(a))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Se requiere habilitación profesional vigente para recibir consultas por WhatsApp.");
+   try{com.abogacia.microservicio_abogados.operativa.DatosOperativos.telefono(a.getNroCelular());}catch(IllegalArgumentException e){throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Guardá un celular argentino válido en Contacto por WhatsApp antes de activar la opción.");}
+  }
+ }
+ public record TelefonoWhatsAppRequest(@NotBlank @Size(max=35) String telefono){
+  @Override public String toString(){return "TelefonoWhatsAppRequest[omitido]";}
+ }
+ @PutMapping("/whatsapp/telefono") @Transactional
+ public ResponseEntity<Map<String,Object>> telefonoWhatsApp(@AuthenticationPrincipal Jwt jwt,@Valid @RequestBody TelefonoWhatsAppRequest request){
+  var a=titular(jwt,true);
+  if(pruebas!=null && pruebas.cuenta(a))pruebas.guardarTelefono(a,request.telefono());
+  else{
+   String numero;try{numero=com.abogacia.microservicio_abogados.operativa.DatosOperativos.telefono(request.telefono());}catch(IllegalArgumentException e){throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Ingresá un celular argentino válido: +54 9, área y número sin 0 ni 15.");}
+   String anterior="";try{anterior=com.abogacia.microservicio_abogados.operativa.DatosOperativos.telefono(a.getNroCelular());}catch(IllegalArgumentException ignored){}
+   if(!numero.equals(anterior))whatsapp.revocar(a.getIdAbogado());a.setNroCelular(numero);
+  }
+  abogados.saveAndFlush(a);return respuesta(a);
+ }
+ @PostMapping("/whatsapp") @Transactional
+ public ResponseEntity<Map<String,Object>> permisoWhatsApp(@AuthenticationPrincipal Jwt jwt,@Valid @RequestBody WhatsAppRequest request){
+  var a=titular(jwt,false);
+  if(Boolean.TRUE.equals(request.permitido()))validarWhatsApp(a);
+  whatsapp.guardar(a.getIdAbogado(),Boolean.TRUE.equals(request.permitido()));return respuesta(a);
  }
  @PostMapping("/baja") @Transactional
  public ResponseEntity<Map<String,String>> baja(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody BajaRequest request) {

@@ -13,9 +13,10 @@ public class RecomendarAbogadosGestor {
     private final AbogadoRepository abogados;
     private final ValidarMatricula matriculas;
     private final org.springframework.beans.factory.ObjectProvider<RecomendacionesPrueba> pruebas;
+    private final com.abogacia.microservicio_abogados.contacto.ProfesionalContactable contacto;
     public RecomendarAbogadosGestor(AbogadoRepository abogados, ValidarMatricula matriculas,
-            org.springframework.beans.factory.ObjectProvider<RecomendacionesPrueba> pruebas) {
-        this.abogados = abogados; this.matriculas = matriculas; this.pruebas = pruebas;
+            org.springframework.beans.factory.ObjectProvider<RecomendacionesPrueba> pruebas, com.abogacia.microservicio_abogados.contacto.ProfesionalContactable contacto) {
+        this.abogados = abogados; this.matriculas = matriculas; this.pruebas = pruebas; this.contacto=contacto;
     }
     static String normalizar(String value) {
         return Normalizer.normalize(value.trim(), Normalizer.Form.NFD)
@@ -30,23 +31,29 @@ public class RecomendarAbogadosGestor {
     }
     @Transactional(readOnly = true)
     public List<AbogadoPublico> recomendar(String especialidad) {
+        return listar(especialidad,12);
+    }
+    @Transactional(readOnly = true)
+    public List<AbogadoPublico> catalogo() { return listar(null,Integer.MAX_VALUE); }
+    private List<AbogadoPublico> listar(String especialidad,int limite) {
         var fixtureReader = pruebas.getIfAvailable();
         if (fixtureReader != null) return fixtureReader.recomendar(especialidad);
         String filtro = especialidad == null || especialidad.isBlank() ? null : normalizar(especialidad);
         if (filtro != null && abogados.findEspecialidadesExistentes().stream()
             .noneMatch(e -> normalizar(e).equals(filtro))) return List.of();
         return abogados.findHabilitadosRecomendaciones().stream()
+            .filter(a -> !com.abogacia.microservicio_abogados.operativa.CuentaPruebaService.marcada(a))
             .filter(a -> !contactoPrueba(a.getMail()))
             .filter(a -> a.getNroMatricula() != null && a.getColegioProfesional() != null && a.getProvincia() != null)
             .filter(a -> filtro == null || a.getEspecialidades().stream().anyMatch(e -> normalizar(e).equals(filtro)))
             // Reuse the live padron check used for login; never upgrade stored verification flags.
             .filter(a -> matriculas.validar(a.getNroMatricula(), a.getDni(), a.getColegioProfesional(), a.getProvincia())
                 == ValidarMatricula.Resultado.VALIDADA)
-            .limit(12)
+            .limit(limite)
             .map(a -> new AbogadoPublico(a.getIdAbogado(), a.getNombre(), a.getApellido(),
                 a.getEspecialidades().stream().sorted().toList(), a.getUbicacion(), a.getProvincia(),
-                a.getDescripcionProfesional(), a.getAniosExperiencia(), a.getNroMatricula(),
-                a.getColegioProfesional(), a.getMail(), a.getNroCelular(), true, false))
+                a.getDescripcionProfesional(), a.getAniosExperiencia(), null,
+                null, null, null, true, false,contacto.disponible(a),contacto.mascara(a),a.getHonorarios()))
             .toList();
     }
 }

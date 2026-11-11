@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { AuthLayout, Field, Notice, type Page } from '../ui'
 import { iniciarSesion } from '../services/authService'
@@ -7,6 +7,7 @@ type Tipo = 'CIUDADANO' | 'ABOGADO'
 
 export default function LoginPage({ navigate, admin = false }: { navigate: (p: Page) => void; admin?: boolean }) {
   const location = useLocation()
+  const routeNavigate = useNavigate()
   const [tipo, setTipo] = useState<Tipo>('CIUDADANO')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -19,8 +20,10 @@ export default function LoginPage({ navigate, admin = false }: { navigate: (p: P
     if (!email || !password) { setError('Completá todos los campos.'); return }
     setLoading(true)
     try {
-      await iniciarSesion(email.trim(), password, admin ? 'ADMIN' : tipo)
-      navigate(admin ? 'admin' : 'home')
+      const sesion = await iniciarSesion(email.trim(), password, admin ? 'ADMIN' : tipo)
+      const pendiente = location.state?.contactoPendiente
+      if (!admin && sesion.rol === 'CIUDADANO' && pendiente?.tipo === 'PROFESIONAL' && typeof pendiente.id === 'string' && /^\d+$/.test(pendiente.id)) routeNavigate('/', { replace: true, state: { contactoPendiente: { tipo: 'PROFESIONAL', id: pendiente.id } } })
+      else navigate(admin ? 'admin' : 'home')
     } catch (ex) {
       setError(ex instanceof TypeError ? 'No se pudo conectar con el servicio. Intentá nuevamente.' : (ex as Error).message)
     } finally {
@@ -35,6 +38,7 @@ export default function LoginPage({ navigate, admin = false }: { navigate: (p: P
 
   return (
     <AuthLayout title={admin ? 'Acceso de administrador' : 'Iniciá sesión'} subtitle="Accedé a tu cuenta de AbogacIA.">
+      {!admin && location.state?.contactoPendiente && <div className="mb-5"><Notice kind="info" title="Iniciá sesión como ciudadano para contactar">Después de ingresar se abrirá el formulario del abogado seleccionado.</Notice></div>}
       {location.state?.bajaExitosa && <div className="mb-5"><Notice kind="ok" title="Baja registrada correctamente">Tu cuenta de abogado está De baja y tu sesión se cerró.</Notice></div>}
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         {!admin && (

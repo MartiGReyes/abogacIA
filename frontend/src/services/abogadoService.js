@@ -1,9 +1,11 @@
 import { fetchAutenticado } from "./authService.js";
 import { crearServicioIdentidad } from "./identidadService.js";
+import { adaptarPerfil } from './contactoService.js';
 // The isolated development image uses "/" for same-origin Nginx requests.
 const BASE = (import.meta.env?.VITE_ABOGADOS_URL ?? "http://localhost:8082").replace(/\/+$/, "");
 
 export async function obtenerRecomendaciones(especialidad) {
+
     const params = new URLSearchParams();
     if (especialidad) params.set('especialidad', especialidad);
     let response;
@@ -20,7 +22,7 @@ export async function obtenerRecomendaciones(especialidad) {
         || typeof a.perfilPrueba !== 'boolean')) {
         throw new Error('El servicio de abogados devolvió una respuesta inválida.');
     }
-    return data;
+    return data.map(adaptarPerfil);
 }
 async function enviar(ruta, datos) {
     let response;
@@ -55,5 +57,8 @@ async function perfilAbogado(method = "GET", datos, ruta = "") {
 }
 export const obtenerMiPerfilAbogado = () => perfilAbogado();
 export const modificarMiPerfilAbogado = datos => perfilAbogado("PUT", datos);
+export const guardarDniPrueba = dni => perfilAbogado('POST', { dni }, '/dni-prueba');
+export const autorizarWhatsApp = permitido => perfilAbogado('POST', { permitido }, '/whatsapp');
+export const guardarCelularWhatsApp = telefono => perfilAbogado('PUT', { telefono }, '/whatsapp/telefono');
 
 export const darDeBajaAbogado = mail => perfilAbogado("POST", { mail, confirmacion: true }, "/baja");

@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { Avatar, Icon, Rating, TRUST, delay, heroBg, lexiImg, logoImg, useEscape, Wordmark, type Page, type User } from '../ui'
-import { LAWYERS, MOCK_HISTORY, SPECIALTIES } from '../demoData'
-import { conversacionLexi } from '../services/lexiConversation.js'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { Avatar, Icon, TRUST, delay, heroBg, lexiImg, logoImg, useEscape, Wordmark, type Page, type User } from '../ui'
+import { MOCK_HISTORY } from '../demoData'
+import { crearConversacion } from '../services/lexiConversation.js'
 import RecomendacionesLexi, { type Recomendacion } from '../RecomendacionesLexi'
+import FormularioContacto, { type PerfilContacto } from '../FormularioContacto'
+import { obtenerCatalogo } from '../services/contactoService.js'
 
 // ─── Lexi Chat ────────────────────────────────────────────────────────────────
 
 const SUGGESTIONS = ['Tuve un accidente de tránsito', 'Me despidieron sin causa', 'Quiero divorciarme']
 
-function LexiChat({ onClose, inputId, fullscreen }: { onClose: () => void; inputId: string; fullscreen?: boolean }) {
+function LexiChat({ onClose, inputId, fullscreen, conversacionLexi }: { onClose: () => void; inputId: string; fullscreen?: boolean; conversacionLexi: ReturnType<typeof crearConversacion> }) {
   const { msgs, typing, error, retry, recomendaciones } = useSyncExternalStore(conversacionLexi.subscribe, conversacionLexi.getSnapshot)
   const ofertas = recomendaciones as Record<string, Recomendacion>
   const [input, setInput] = useState('')
@@ -85,55 +87,19 @@ function LexiChat({ onClose, inputId, fullscreen }: { onClose: () => void; input
 
 // ─── LawyerCard ───────────────────────────────────────────────────────────────
 
-function LawyerCard({ lawyer, onConsult }: { lawyer: typeof LAWYERS[0]; onConsult: () => void }) {
-  return (
-    <article className="card flex flex-col p-5 transition-colors duration-200 hover:border-line-strong hover:bg-navy-850">
-      <div className="flex items-start gap-3.5">
-        <img src={lawyer.photo} alt={`Foto de ${lawyer.name}`} width={52} height={52} loading="lazy" className="w-13 h-13 rounded-full object-cover bg-navy-800 shrink-0" />
-        <div className="min-w-0">
-          <h3 className="text-base font-semibold leading-snug flex items-center gap-1.5">
-            {lawyer.name}
-            {lawyer.verified && (
-              <span title="Matrícula verificada" className="text-sky-400 shrink-0">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.4 1.8 3-.2.9 2.9 2.5 1.7-1 2.8 1 2.8-2.5 1.7-.9 2.9-3-.2L12 22l-2.4-1.8-3 .2-.9-2.9-2.5-1.7 1-2.8-1-2.8 2.5-1.7.9-2.9 3 .2L12 2z" /><path d="M8.5 12.2l2.3 2.3 4.7-4.8" fill="none" stroke="#0b1428" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                <span className="sr-only">Matrícula verificada</span>
-              </span>
-            )}
-          </h3>
-          <p className="text-[13px] text-ink-2 mt-0.5">{lawyer.specialty}</p>
-          <div className="mt-1.5"><Rating rating={lawyer.rating} reviews={lawyer.reviews} /></div>
-        </div>
-      </div>
-
-      <p className="mt-4 text-[14px] leading-relaxed text-ink-2 line-clamp-3">{lawyer.description}</p>
-
-      <p className="mt-3 flex items-center gap-1.5 text-[13px] text-ink-3">
-        <Icon name="pin" className="w-3.5 h-3.5" />{lawyer.location}
-        {!lawyer.verified && <span className="ml-auto text-[12px]">Matrícula en revisión</span>}
-      </p>
-
-      <div className="mt-auto pt-4">
-        <div className="pt-4 border-t border-line flex flex-wrap items-center justify-between gap-3">
-          <p className="leading-tight">
-            <span className="block text-[12px] text-ink-3">Consulta desde</span>
-            <span className="text-[17px] font-semibold tabular">{lawyer.fee}</span>
-          </p>
-          <div className="flex gap-2">
-            <button aria-label={`Ver perfil de ${lawyer.name}`} className="btn btn-ghost btn-sm">Ver perfil</button>
-            <button onClick={onConsult} aria-label={`Consultar a ${lawyer.name}`} className="btn btn-secondary btn-sm">Consultar</button>
-          </div>
-        </div>
-      </div>
-    </article>
-  )
+function LawyerCard({ lawyer }: { lawyer: PerfilContacto }) {
+  return <article className="card flex flex-col p-5 min-w-0 break-words">
+    {lawyer.perfilPrueba && <><p className="font-bold text-gold-400 mb-2">Cuenta de prueba — matrícula no verificada</p><p className="text-xs text-ink-2 mb-2">Identidad declarada; no verificada por Didit</p></>}
+    <div className="flex items-start gap-3"><span className="w-12 h-12 rounded-full bg-navy-800 grid place-items-center shrink-0"><Icon name="user" /></span><div className="min-w-0"><h3 className="font-semibold">{lawyer.nombre} {lawyer.apellido}</h3><p className="text-sm text-ink-2">{lawyer.especialidades.join(' · ')}</p>{!lawyer.perfilPrueba && lawyer.matriculaVerificada && <p className="text-xs text-sky-400 mt-1">Matrícula verificada</p>}</div></div>
+    {lawyer.descripcionProfesional && <p className="mt-4 text-sm text-ink-2">{lawyer.descripcionProfesional}</p>}
+    {(lawyer.ubicacion || lawyer.provincia) && <p className="mt-3 text-sm text-ink-3">{[lawyer.ubicacion,lawyer.provincia].filter(Boolean).join(', ')}</p>}
+    {lawyer.honorarios != null && <p className="mt-4 text-sm">Honorarios publicados: {new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS'}).format(Number(lawyer.honorarios))}</p>}
+    <div className="mt-auto pt-3"><FormularioContacto key={lawyer.referencia.tipo+lawyer.referencia.id} abogado={lawyer} /></div>
+  </article>
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// PAGE: HOME
-// ═══════════════════════════════════════════════════════════════════════════════
-
 const HOW_IT_WORKS = [
-  { icon: 'search' as const, title: 'Buscá por especialidad', text: 'Filtrá el catálogo por área del derecho y compará valoraciones y honorarios de cada profesional.' },
+  { icon: 'search' as const, title: 'Buscá por especialidad', text: 'Filtrá el catálogo por área del derecho y consultá la información profesional y los honorarios publicados.' },
   { icon: 'chat' as const, title: 'Consultá a Lexi', text: 'Recibí una orientación inicial gratuita sobre tu situación antes de contactar a un abogado.' },
   { icon: 'shield' as const, title: 'Contactá a un profesional', text: 'Elegí entre abogados de Córdoba con matrícula verificada por la plataforma.' },
 ]
@@ -144,12 +110,11 @@ const PRO_STEPS = [
   { icon: 'user' as const, title: 'Perfil en el catálogo', text: 'Con el sello de profesional verificado.' },
 ]
 
-type SortKey = 'rating' | 'price' | 'default'
-const feeValue = (fee: string) => Number(fee.replace(/\D/g, ''))
+type SortKey = 'nombre' | 'price' | 'default'
 
 function HeroPreview({ onTry }: { onTry: () => void }) {
   const q = MOCK_HISTORY[2]
-  const l = LAWYERS[1]
+
   return (
     <div className="relative fade-up mt-10 lg:mt-0" style={delay(200)}>
       <div className="absolute z-10 -top-10 left-5">
@@ -166,17 +131,7 @@ function HeroPreview({ onTry }: { onTry: () => void }) {
         <div className="p-5 space-y-3">
           <p className="ml-auto max-w-[85%] w-fit bg-gold-500 text-[#0b1020] font-medium text-[14px] leading-relaxed rounded-2xl rounded-tr-md px-3.5 py-2.5">{q.consulta}</p>
           <p className="max-w-[90%] bg-navy-800 text-[14px] leading-relaxed rounded-2xl rounded-tl-md px-3.5 py-2.5">{q.respuesta} Te recomiendo consultarlo con un abogado laboralista.</p>
-          <div className="pt-2">
-            <p className="text-[12px] font-semibold text-ink-3 mb-2">Abogados recomendados</p>
-            <div className="flex items-center gap-3 rounded-xl border border-line bg-navy-950/60 p-3">
-              <img src={l.photo} alt="" className="w-10 h-10 rounded-full object-cover" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold truncate">{l.name}</p>
-                <p className="text-[12px] text-ink-3">{l.specialty} · {l.location}</p>
-              </div>
-              <Rating rating={l.rating} />
-            </div>
-          </div>
+          <p className="text-sm text-ink-2">Elegí un perfil del catálogo para contactar desde su formulario.</p>
         </div>
         <div className="px-5 pb-5">
           <button onClick={onTry} className="btn btn-secondary w-full">Probar Lexi ahora <Icon name="arrow" className="w-4 h-4" /></button>
@@ -191,7 +146,24 @@ export default function HomePage({ navigate, user, lexiSignal, onLexiHandled }: 
   const [mobileChatOpen, setMobileChatOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
-  const [sort, setSort] = useState<SortKey>('rating')
+  const [sort, setSort] = useState<SortKey>('nombre')
+
+  const [catalogo, setCatalogo] = useState<PerfilContacto[]>([])
+  const [catalogoError, setCatalogoError] = useState('')
+  const [cargandoCatalogo, setCargandoCatalogo] = useState(true)
+  const [versionCatalogo, setVersionCatalogo] = useState(0)
+  const [versionSesion, setVersionSesion] = useState(0)
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- Changing sessions resets stale recommendations.
+  const conversacionLexi = useMemo(() => crearConversacion(), [versionSesion])
+  useEffect(() => { const actualizar = () => { setVersionCatalogo(n => n + 1); setVersionSesion(n => n + 1) }; window.addEventListener('sesion',actualizar); return () => window.removeEventListener('sesion',actualizar) }, [])
+  useEffect(() => {
+    const abort = new AbortController()
+    // oxlint-disable-next-line react/set-state-in-effect -- A new API request invalidates the old catalogue.
+    setCargandoCatalogo(true); setCatalogo([]); setCatalogoError('')
+    obtenerCatalogo(abort.signal).then(p => { if (!abort.signal.aborted) setCatalogo(p) }).catch(e => { if (!abort.signal.aborted) setCatalogoError(e.message) }).finally(() => { if (!abort.signal.aborted) setCargandoCatalogo(false) })
+    return () => abort.abort()
+  }, [versionCatalogo])
+  const especialidades = Array.from(new Set(catalogo.flatMap(p => p.especialidades))).sort()
 
   function openLexi() {
     if (window.matchMedia('(min-width: 1280px)').matches) {
@@ -221,9 +193,8 @@ export default function HomePage({ navigate, user, lexiSignal, onLexiHandled }: 
   }, [mobileChatOpen])
 
   const q = searchQuery.trim().toLowerCase()
-  const filteredLawyers = LAWYERS
-    .filter(l => (!q || l.name.toLowerCase().includes(q) || l.specialty.toLowerCase().includes(q)) && (!activeFilter || l.specialty === activeFilter))
-    .sort((a, b) => sort === 'rating' ? b.rating - a.rating : sort === 'price' ? feeValue(a.fee) - feeValue(b.fee) : 0)
+  const filteredLawyers = catalogo.filter(l => (!q || (l.nombre+' '+l.apellido+' '+l.especialidades.join(' ')).toLowerCase().includes(q)) && (!activeFilter || l.especialidades.includes(activeFilter)))
+    .sort((a,b) => sort === 'price' ? Number(a.honorarios ?? Infinity)-Number(b.honorarios ?? Infinity) : sort === 'default' ? (b.aniosExperiencia ?? 0)-(a.aniosExperiencia ?? 0) : a.nombre.localeCompare(b.nombre))
 
   const chip = (active: boolean) => `shrink-0 h-9 px-3.5 rounded-full text-[13px] font-medium border transition-colors ${active ? 'bg-ink text-navy-950 border-ink' : 'border-line-strong text-ink-2 hover:text-ink hover:border-white/25'}`
 
@@ -272,7 +243,7 @@ export default function HomePage({ navigate, user, lexiSignal, onLexiHandled }: 
           </div>
           <div role="group" aria-label="Filtrar por especialidad" className="mt-3 -mx-3 px-3 sm:mx-0 sm:px-0 flex gap-2 overflow-x-auto no-scrollbar sm:flex-wrap">
             <button onClick={() => setActiveFilter(null)} aria-pressed={!activeFilter} className={chip(!activeFilter)}>Todas</button>
-            {SPECIALTIES.map(s => (
+            {especialidades.map(s => (
               <button key={s} onClick={() => setActiveFilter(activeFilter === s ? null : s)} aria-pressed={activeFilter === s} className={chip(activeFilter === s)}>{s.replace('Derecho ', '').replace(/^de /, '').replace(/^./, c => c.toUpperCase())}</button>
             ))}
           </div>
@@ -284,22 +255,22 @@ export default function HomePage({ navigate, user, lexiSignal, onLexiHandled }: 
               <div>
                 <h2 id="abogados-title" className="text-[28px] sm:text-[32px] font-bold leading-tight">Abogados disponibles</h2>
                 <p className="mt-1 text-ink-3 text-sm" aria-live="polite">
-                  <span className="tabular">{filteredLawyers.length}</span> {filteredLawyers.length === 1 ? 'profesional' : 'profesionales'}{activeFilter ? ` en ${activeFilter}` : ' en Córdoba'}
+                  <span className="tabular">{filteredLawyers.length}</span> {filteredLawyers.length === 1 ? 'perfil' : 'perfiles'}{activeFilter ? ` en ${activeFilter}` : ' en Córdoba'}
                 </p>
               </div>
               <div className="flex items-center gap-2.5">
                 <label htmlFor="lawyer-sort" className="text-[13px] text-ink-3 whitespace-nowrap">Ordenar por</label>
                 <select id="lawyer-sort" value={sort} onChange={e => setSort(e.target.value as SortKey)} className="field h-10 w-48 text-sm">
-                  <option value="rating">Mejor valorados</option>
+                  <option value="nombre">Nombre</option>
                   <option value="price">Menor precio</option>
                   <option value="default">Más experiencia</option>
                 </select>
               </div>
             </div>
 
-            {filteredLawyers.length > 0 ? (
+            {cargandoCatalogo ? <p role="status">Cargando catálogo…</p> : catalogoError ? <div role="alert" className="card p-5"><p>{catalogoError}</p><button className="btn btn-secondary mt-3" onClick={() => setVersionCatalogo(v => v+1)}>Reintentar catálogo</button></div> : filteredLawyers.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4" /* Máximo 2 columnas: el contenedor comparte ancho con Lexi; con 3 los botones no entran. */>
-                {filteredLawyers.map(l => <LawyerCard key={l.id} lawyer={l} onConsult={openLexi} />)}
+                {filteredLawyers.map(l => <LawyerCard key={l.referencia.tipo+l.referencia.id} lawyer={l} />)}
               </div>
             ) : (
               <div className="card border-dashed px-6 py-16 text-center">
@@ -311,13 +282,13 @@ export default function HomePage({ navigate, user, lexiSignal, onLexiHandled }: 
           </div>
 
           <aside id="lexi" aria-label="Lexi, asistente legal" className="hidden xl:block w-[360px] shrink-0 h-[640px]" /* Sin sticky: se desplaza con la página en vez de despegarse al scrollear. */>
-            {chatOpen ? <LexiChat onClose={() => setChatOpen(false)} inputId="lexi-input" /> : (
+            {chatOpen ? <LexiChat conversacionLexi={conversacionLexi} onClose={() => setChatOpen(false)} inputId="lexi-input" /> : (
               <div className="card h-full p-7 flex flex-col">
                 <Avatar src={lexiImg} className="w-16 h-16" />
                 <h3 className="mt-5 text-xl font-bold">¿No sabés qué abogado necesitás?</h3>
                 <p className="mt-2.5 text-ink-2 text-[14px] leading-relaxed">Contale a Lexi qué te pasó y recibí una orientación inicial gratuita, junto con la especialidad que corresponde a tu caso.</p>
                 <ul className="mt-6 space-y-2.5 text-[14px] text-ink-2">
-                  {['Respuestas en segundos', 'Sin necesidad de registrarte', 'Te sugiere profesionales verificados'].map(t => (
+                  {['Respuestas en segundos', 'Orientación inicial', catalogo.some(p => p.perfilPrueba) ? 'Incluye cuentas de prueba de este entorno' : 'Te sugiere profesionales verificados'].map(t => (
                     <li key={t} className="flex items-center gap-2.5"><Icon name="check" className="w-4 h-4 text-gold-400" stroke={2.25} />{t}</li>
                   ))}
                 </ul>
@@ -376,7 +347,7 @@ export default function HomePage({ navigate, user, lexiSignal, onLexiHandled }: 
       {/* ── Lexi en pantallas chicas ── */}
       {mobileChatOpen ? (
         <div className="xl:hidden fixed inset-0 z-60 bg-navy-900 fade-in" role="dialog" aria-modal="true" aria-label="Chat con Lexi">
-          <LexiChat onClose={() => setMobileChatOpen(false)} inputId="lexi-input-m" fullscreen />
+          <LexiChat conversacionLexi={conversacionLexi} onClose={() => setMobileChatOpen(false)} inputId="lexi-input-m" fullscreen />
         </div>
       ) : (
         <button onClick={() => setMobileChatOpen(true)} aria-label="Abrir chat con Lexi" className="xl:hidden fixed z-40 right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] flex items-center gap-2 pl-1.5 pr-4 h-12 rounded-full bg-navy-800 border border-line-strong shadow-[0_12px_30px_-8px_rgba(0,0,0,0.8)] hover:bg-navy-700 transition-colors">
@@ -424,7 +395,7 @@ function Footer({ navigate, onLexi }: { navigate: (p: Page) => void; onLexi: () 
       <div className="border-t border-line">
         <div className="max-w-7xl mx-auto px-5 sm:px-8 py-6 flex flex-col md:flex-row gap-3 md:items-center justify-between text-[12px] text-ink-3">
           <p>© 2026 AbogacIA · Proyecto académico, Seminario.</p>
-          <p className="max-w-xl md:text-right">La orientación de Lexi es informativa y no reemplaza el asesoramiento de un abogado matriculado. Perfiles y datos de demostración.</p>
+          <p className="max-w-xl md:text-right">La orientación de Lexi es informativa y no reemplaza el asesoramiento de un abogado matriculado. La disponibilidad de contacto depende de la autorización vigente.</p>
         </div>
       </div>
     </footer>

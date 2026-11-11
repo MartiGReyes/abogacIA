@@ -1,6 +1,7 @@
 import { fetchAutenticado } from "./authService.js";
 import { crearServicioIdentidad } from "./identidadService.js";
-const API_URL = "http://localhost:8080/api/ciudadanos";
+const BASE = (import.meta.env?.VITE_CIUDADANOS_URL ?? 'http://localhost:8080').replace(/\/+$/, '');
+const API_URL = `${BASE}/api/ciudadanos`;
 
 export const identidadCiudadano = crearServicioIdentidad(`${API_URL}/verificacion`, "ciudadanos", "abogacia-registro-temporal-ciudadano");
 

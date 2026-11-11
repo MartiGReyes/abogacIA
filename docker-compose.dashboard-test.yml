@@ -1,0 +1,61 @@
+# Standalone: never combine with other Compose files.
+name: abogacia-dashboard-test
+services:
+  postgres-dashboard:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: dashboard_abogados_test
+      POSTGRES_USER: dashboard_owner
+      POSTGRES_PASSWORD: ${DASHBOARD_OWNER_PASSWORD:?Run Preparar-Dashboard.ps1}
+      DASHBOARD_DB_PASSWORD: ${DASHBOARD_DB_PASSWORD:?Run Preparar-Dashboard.ps1}
+      DASHBOARD_FIXTURE_HASH: ${DASHBOARD_FIXTURE_HASH:?Run Preparar-Dashboard.ps1}
+    volumes:
+      - dashboard_test_data:/var/lib/postgresql/data
+      - ./docker/dashboard-test/init:/docker-entrypoint-initdb.d:ro
+    networks: [dashboard-private]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U dashboard_owner -d dashboard_abogados_test']
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  abogados-dashboard:
+    build: ./microservicio-abogados
+    environment:
+      SPRING_PROFILES_ACTIVE: dashboard-test
+      DB_URL: jdbc:postgresql://postgres-dashboard:5432/dashboard_abogados_test
+      DB_USERNAME: dashboard_reader
+      DB_PASSWORD: ${DASHBOARD_DB_PASSWORD}
+      INTERNAL_USERNAME: dashboard-internal
+      INTERNAL_PASSWORD: ${DASHBOARD_INTERNAL_PASSWORD:?Run Preparar-Dashboard.ps1}
+      JWT_SECRET: ${DASHBOARD_JWT_SECRET:?Run Preparar-Dashboard.ps1}
+      DIDIT_RECONCILIATION_ENABLED: 'false'
+      DIDIT_PRIVACY_READY: 'false'
+      PADRON_IMPORTAR: 'false'
+      ABOGADOS_CORREO_CONSOLA: 'false'
+    networks: [dashboard-private]
+    depends_on:
+      postgres-dashboard:
+        condition: service_healthy
+  auth-dashboard:
+    build: ./microservicio-autenticacion
+    environment:
+      INTERNAL_USERNAME: dashboard-internal
+      INTERNAL_PASSWORD: ${DASHBOARD_INTERNAL_PASSWORD}
+      JWT_SECRET: ${DASHBOARD_JWT_SECRET}
+      ABOGADOS_URL: http://abogados-dashboard:8082
+      CIUDADANOS_URL: http://127.0.0.1:1
+    networks: [dashboard-private]
+    depends_on: [abogados-dashboard]
+  frontend-dashboard:
+    build:
+      context: .
+      dockerfile: docker/dashboard-test/frontend.Dockerfile
+    ports: ['127.0.0.1:5181:80']
+    networks: [dashboard-private, dashboard-web]
+    depends_on: [auth-dashboard]
+networks:
+  dashboard-private:
+    internal: true
+  dashboard-web: {}
+volumes:
+  dashboard_test_data: {}

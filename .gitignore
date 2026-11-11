@@ -8,3 +8,8 @@
 
 # Cache local de Maven
 /.m2/
+
+# Local execution artifacts and private backups must never be published.
+*.log
+*.dump
+.private-*/

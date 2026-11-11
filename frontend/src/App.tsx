@@ -15,6 +15,7 @@ import LawyerProfilePage from './pages/LawyerProfile'
 import { obtenerMiPerfilAbogado } from './services/abogadoService'
 import ProfilePage from './pages/Profile'
 import HistoryPage from './pages/History'
+import LawyerDashboard, { AbogadoProtegido, LawyerAdviceDetail } from './pages/LawyerDashboard'
 import { AdminUsuarios, AdminPadron } from './pages/AdminGestion'
 import { AdminProtegido, AdminPanel, AdminAbogados, AdminIdentidad } from './pages/Admin'
 
@@ -24,7 +25,7 @@ function Shell() {
   const sesion = useSesion() as Sesion | null
   const navigate = useNavegar()
   const location = useLocation()
-  const [perfil, setPerfil] = useState<User | null>(null)
+  const [perfil, setPerfil] = useState<(User & { cuentaPrueba?: boolean }) | null>(null)
   const [datosVersion, setDatosVersion] = useState(0)
   const [lexiSignal, setLexiSignal] = useState(0)
 
@@ -33,12 +34,13 @@ function Shell() {
     if (!sesion || !['CIUDADANO', 'ABOGADO'].includes(sesion.rol)) return
     let activo = true
     const datos = sesion.rol === 'ABOGADO' ? obtenerMiPerfilAbogado() : obtenerMisDatos()
-    datos.then((c: { nombre: string; apellido: string; mail: string }) => { if (activo) setPerfil({ nombre: c.nombre, apellido: c.apellido, email: c.mail }) })
+    datos.then((c: { nombre: string; apellido: string; mail: string; cuentaPrueba?: boolean }) => { if (activo) setPerfil({ nombre: c.nombre, apellido: c.apellido, email: c.mail, cuentaPrueba: c.cuentaPrueba }) })
       .catch(() => { if (activo) setPerfil(null) })
     return () => { activo = false }
   }, [sesion, datosVersion])
   const user: User | null = !sesion ? null
-    : ['CIUDADANO', 'ABOGADO'].includes(sesion.rol) ? perfil
+    : sesion.rol === 'ABOGADO' ? perfil ?? { nombre: 'Abogado', apellido: '', email: '' }
+    : sesion.rol === 'CIUDADANO' ? perfil
     : { nombre: sesion.rol === 'ADMIN' ? 'Administrador' : 'Abogado', apellido: '', email: '' }
 
   function handleLogout() { cerrarSesion(); navigate('home') }
@@ -55,10 +57,13 @@ function Shell() {
 
   return (
     <div className="min-h-screen bg-navy-950 text-ink">
-      <Navbar navigate={navigate} user={user} onLogout={handleLogout} onSection={goToSection} admin={sesion?.rol === 'ADMIN'} />
+      <Navbar navigate={navigate} user={user} onLogout={handleLogout} onSection={goToSection} admin={sesion?.rol === 'ADMIN'} abogado={sesion?.rol === 'ABOGADO'} />
       <main>
+        {import.meta.env.VITE_DASHBOARD_TEST === 'true' && <p className="fixed bottom-0 inset-x-0 z-50 text-center bg-gold-400 text-navy-950 text-xs font-bold py-1">ENTORNO AISLADO · CUENTAS Y ACTIVIDAD SINTÉTICAS DE PRUEBA</p>}
         <Routes>
-          <Route path="/" element={<HomePage navigate={navigate} user={user} lexiSignal={lexiSignal} onLexiHandled={() => setLexiSignal(0)} />} />
+          <Route path="/" element={sesion?.rol === 'ABOGADO' ? <AbogadoProtegido><LawyerDashboard nombre={perfil?.nombre} cuentaPrueba={perfil?.cuentaPrueba} /></AbogadoProtegido> : <HomePage navigate={navigate} user={user} lexiSignal={lexiSignal} onLexiHandled={() => setLexiSignal(0)} />} />
+          <Route path="/dashboard-abogado" element={<AbogadoProtegido><Navigate to="/" replace /></AbogadoProtegido>} />
+          <Route path="/dashboard-abogado/asesoramientos/:id" element={<AbogadoProtegido><LawyerAdviceDetail /></AbogadoProtegido>} />
           <Route path="/iniciar-sesion" element={<LoginPage navigate={navigate} />} />
           <Route path="/admin/iniciar-sesion" element={<LoginPage navigate={navigate} admin />} />
           <Route path="/admin" element={<AdminProtegido><AdminPanel /></AdminProtegido>} />
@@ -72,7 +77,7 @@ function Shell() {
           <Route path="/registro-abogado" element={<RegisterLawyerPage navigate={navigate} />} />
           <Route path="/cuenta-profesional" element={<LawyerPendingPage navigate={navigate} />} />
           <Route path="/mis-datos" element={ciudadano ? <ProfilePage navigate={navigate} onUpdated={() => setDatosVersion(v => v + 1)} /> : sesion?.rol === 'ABOGADO' ? <LawyerProfilePage navigate={navigate} onUpdated={() => setDatosVersion(v => v + 1)} /> : <Navigate to="/iniciar-sesion" replace />} />
-          <Route path="/historial" element={sesion ? <HistoryPage navigate={navigate} /> : <Navigate to="/iniciar-sesion" replace />} />
+          <Route path="/historial" element={sesion?.rol === 'ABOGADO' ? <Navigate to="/" replace /> : sesion ? <HistoryPage navigate={navigate} /> : <Navigate to="/iniciar-sesion" replace />} />
           <Route path="/verificar-identidad" element={<Navigate to="/registro-abogado" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

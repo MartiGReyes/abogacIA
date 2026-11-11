@@ -25,6 +25,12 @@ public class SecurityConfig {
                 .password(encoder.encode(password)).roles("INTERNAL").build());
     }
 
+    @Bean @Order(0)
+    SecurityFilterChain contactoSecurity(HttpSecurity http) throws Exception {
+        return http.securityMatcher("/api/abogados/contacto/whatsapp").csrf(c->c.disable()).cors(Customizer.withDefaults())
+            .sessionManagement(s->s.sessionCreationPolicy(SessionCreationPolicy.STATELESS)).authorizeHttpRequests(a->a.anyRequest().authenticated())
+            .oauth2ResourceServer(o->o.jwt(Customizer.withDefaults())).build();
+    }
     @Bean
     @Order(1)
     SecurityFilterChain internalSecurity(HttpSecurity http) throws Exception {
@@ -52,11 +58,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(a -> a
                     .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/abogados/confirmar").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/abogados/recomendaciones").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/abogados/recomendaciones", "/api/abogados/catalogo").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/abogados/contacto/whatsapp").permitAll()
                     .requestMatchers("/api/abogados/verificacion/**").permitAll()
                     
                     .anyRequest().denyAll())
-                .build();
+                .oauth2ResourceServer(o->o.jwt(Customizer.withDefaults()))
+                .exceptionHandling(e->e.authenticationEntryPoint(new org.springframework.security.web.authentication.HttpStatusEntryPoint(org.springframework.http.HttpStatus.FORBIDDEN))).build();
     }
 
     @Bean
@@ -72,7 +80,7 @@ public class SecurityConfig {
     CorsConfigurationSource corsConfigurationSource(
             @Value("${abogados.cors.origin:http://localhost:5173}") String origin) {
         CorsConfiguration cors = new CorsConfiguration();
-        cors.setAllowedOrigins(List.of(origin));
+        cors.setAllowedOrigins(List.of(origin.split(",")));
         cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "OPTIONS"));
         cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Registro-Token"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

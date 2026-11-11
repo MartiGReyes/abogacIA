@@ -4,13 +4,13 @@ import { useEffect, useState } from 'react'
 
 import { Field, Icon, Notice, useEscape, type Page } from '../ui'
 
-import { darDeBajaAbogado, modificarMiPerfilAbogado, obtenerMiPerfilAbogado } from '../services/abogadoService'
+import { darDeBajaAbogado, modificarMiPerfilAbogado, obtenerMiPerfilAbogado, autorizarWhatsApp, guardarDniPrueba, guardarCelularWhatsApp } from '../services/abogadoService'
 
 
 
 
 
-interface Abogado { estado: string; fechaRegistro: string; genero: string | null; correoConfirmado: boolean; validacionMatricula: string; domicilio: string; nroMatricula: string; colegioProfesional: string; provincia: string; especialidades: string[]; aniosExperiencia: number; honorarios: number; ubicacion: string; direccionProfesional: string; descripcionProfesional: string; nombre: string; apellido: string; dni: string; fechaNacimiento: string; direccion: string | null; mail: string; nroCelular: string | null; verificacionDni?: string }
+interface Abogado { whatsappPuedeActivar?: boolean; whatsappBloqueo?: string; cuentaPrueba?: boolean; dniCargado?: boolean; whatsappAutorizado?: boolean; estado: string; fechaRegistro: string; genero: string | null; correoConfirmado: boolean; validacionMatricula: string; domicilio: string; nroMatricula: string; colegioProfesional: string; provincia: string; especialidades: string[]; aniosExperiencia: number; honorarios: number; ubicacion: string; direccionProfesional: string; descripcionProfesional: string; nombre: string; apellido: string; dni: string; fechaNacimiento: string; direccion: string | null; mail: string; nroCelular: string | null; verificacionDni?: string }
 
 
 
@@ -36,6 +36,10 @@ export default function LawyerProfilePage({ navigate, onUpdated }: { navigate: (
   const [error, setError] = useState('')
 
   const [saving, setSaving] = useState(false)
+  const [dniPrueba, setDniPrueba] = useState('')
+  const [celularWhatsApp, setCelularWhatsApp] = useState('')
+  const [errorWhatsApp, setErrorWhatsApp] = useState('')
+  const [mensajeWhatsApp, setMensajeWhatsApp] = useState('')
   const routeNavigate = useNavigate()
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState('')
@@ -67,7 +71,7 @@ export default function LawyerProfilePage({ navigate, onUpdated }: { navigate: (
   useEffect(() => {
 
     let active = true
-    obtenerMiPerfilAbogado().then((c: Abogado) => { if (active) { setUser(c); setForm(c) } }).catch((e: Error) => { if (active) setLoadError(e.message) })
+    obtenerMiPerfilAbogado().then((c: Abogado) => { if (active) { setUser(c); setForm(c); setCelularWhatsApp(c.nroCelular || '') } }).catch((e: Error) => { if (active) setLoadError(e.message) })
     return () => { active = false }
 
   }, [loadVersion])
@@ -118,6 +122,26 @@ export default function LawyerProfilePage({ navigate, onUpdated }: { navigate: (
 
 
 
+  async function cambiarWhatsApp(permitido: boolean) {
+    const anterior = user
+    if (user) setUser({ ...user, whatsappAutorizado: permitido })
+    setSaving(true); setErrorWhatsApp(''); setMensajeWhatsApp('')
+    try { const actualizado = await autorizarWhatsApp(permitido); setUser(actualizado); setForm(actualizado); setMensajeWhatsApp(permitido ? 'Preferencia guardada: recibirás consultas por WhatsApp.' : 'Preferencia guardada: contacto por WhatsApp desactivado.'); onUpdated() }
+    catch(e) { setUser(anterior); setErrorWhatsApp((e as Error).message) } finally { setSaving(false) }
+  }
+
+  async function guardarNumeroWhatsApp(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setErrorWhatsApp(''); setMensajeWhatsApp('')
+    try { const actualizado: Abogado = await guardarCelularWhatsApp(celularWhatsApp.trim()); setUser(actualizado); setForm(actualizado); setCelularWhatsApp(actualizado.nroCelular || ''); setMensajeWhatsApp('Celular guardado correctamente. Revisá el permiso para recibir consultas.'); onUpdated() }
+    catch(ex) { setErrorWhatsApp((ex as Error).message) } finally { setSaving(false) }
+  }
+
+  async function guardarIdentidadDeclarada(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setError('')
+    try { const actualizado = await guardarDniPrueba(dniPrueba); setUser(actualizado); setForm(actualizado); setDniPrueba(''); setSaved(true); onUpdated() }
+    catch (ex) { setError((ex as Error).message) } finally { setSaving(false) }
+  }
+
   async function handleSave() {
 
     if (!form || !user) return
@@ -142,7 +166,7 @@ export default function LawyerProfilePage({ navigate, onUpdated }: { navigate: (
 
       })
 
-      setUser(actualizado); setForm(actualizado); setEditing(false); setSaved(true); onUpdated()
+      setUser(actualizado); setForm(actualizado); setCelularWhatsApp(actualizado.nroCelular || ''); setEditing(false); setSaved(true); onUpdated()
 
       setTimeout(() => setSaved(false), 3000)
 
@@ -180,7 +204,7 @@ export default function LawyerProfilePage({ navigate, onUpdated }: { navigate: (
 
           <p className="text-ink-2 text-sm mt-1 flex flex-wrap items-center gap-2">{user.mail}
 
-            <span className="text-[12px] font-semibold text-sky-400 bg-sky-400/10 rounded-full px-2 py-0.5">Abogado</span>
+            <span className="text-[12px] font-semibold text-sky-400 bg-sky-400/10 rounded-full px-2 py-0.5">{user.cuentaPrueba ? 'ABOGADO · cuenta de prueba' : 'Abogado'}</span>
 
             {user.verificacionDni === 'APROBADA' && <span className="text-[12px] font-semibold text-ok bg-ok/10 rounded-full px-2 py-0.5 inline-flex items-center gap-1"><Icon name="shield" className="w-3.5 h-3.5" />Identidad verificada</span>}
 
@@ -201,6 +225,29 @@ export default function LawyerProfilePage({ navigate, onUpdated }: { navigate: (
 
 
 
+      {user.cuentaPrueba && <section className="card mt-8 px-6 py-5 space-y-3">
+        <h2 className="text-lg font-semibold text-gold-400">Cuenta de prueba — matrícula no verificada</h2>
+        <p>Identidad declarada; no verificada por Didit. Solo disponible en este entorno aislado.</p>
+        <form onSubmit={guardarIdentidadDeclarada} autoComplete="off" className="space-y-3" aria-label="DNI de la cuenta de prueba">
+          <label className="block">Mi DNI (7 u 8 dígitos)<input className="field mt-1" required pattern="[0-9]{7,8}" inputMode="numeric" maxLength={8} value={dniPrueba} onChange={e => setDniPrueba(e.target.value)} /></label>
+          <p className="text-sm text-ink-2">{user.dniCargado ? 'DNI ingresado y cifrado. No se vuelve a mostrar completo.' : 'Ingresá tu propio DNI. Se guardará cifrado y no se verificará con Didit.'} Guardar o reemplazar el DNI revoca el permiso de WhatsApp.</p>
+          <button disabled={saving || editing} className="btn btn-secondary">Guardar DNI cifrado</button>
+        </form>
+      </section>}
+      <section className="card mt-8 px-6 py-5 space-y-3" aria-label="Autorización de WhatsApp">
+        <h2 className="text-lg font-semibold">Contacto por WhatsApp</h2>
+        <form onSubmit={guardarNumeroWhatsApp} autoComplete="off" className="space-y-3" aria-label="Guardar celular de WhatsApp">
+          <label htmlFor="whatsapp-celular" className="block">Celular para WhatsApp</label>
+          <input id="whatsapp-celular" className="field" type="tel" maxLength={35} required disabled={saving || editing} value={celularWhatsApp} onChange={e => { setCelularWhatsApp(e.target.value); setMensajeWhatsApp(''); setErrorWhatsApp('') }} aria-describedby="whatsapp-formato" />
+          <p id="whatsapp-formato" className="text-sm text-ink-2">Formato argentino: +54 9, área y número sin 0 ni 15. Este guardado actualiza el celular de tu perfil.</p>
+          <button className="btn btn-secondary" disabled={saving || editing || !celularWhatsApp.trim()}>Guardar celular de WhatsApp</button>
+        </form>
+        {errorWhatsApp && <p role="alert" className="text-err">{errorWhatsApp}</p>}
+        {mensajeWhatsApp && <p role="status">{mensajeWhatsApp}</p>}
+        <label className="flex items-start gap-3"><input type="checkbox" className="mt-1" disabled={saving || editing || (!user.whatsappAutorizado && (user.whatsappPuedeActivar === false || celularWhatsApp.trim() !== (user.nroCelular || '').trim()))} checked={user.whatsappAutorizado === true} onChange={e => void cambiarWhatsApp(e.target.checked)} aria-describedby="whatsapp-requisito" /><span>Recibir consultas por WhatsApp</span></label>
+        <p id="whatsapp-requisito" className="text-sm text-ink-2">{editing ? 'Guardá o cancelá la edición general del perfil para gestionar WhatsApp.' : celularWhatsApp.trim() !== (user.nroCelular || '').trim() ? 'Tenés un celular sin guardar. Pulsá «Guardar celular de WhatsApp» antes de activar el contacto.' : user.whatsappBloqueo || 'El celular está guardado y podés activar o desactivar el contacto.'}</p>
+        <p className="text-sm text-ink-2">Desactivado por defecto. Usa tu celular registrado{user.cuentaPrueba ? ' únicamente en este entorno aislado' : ' y exige habilitación profesional vigente'}. Cambiar el celular revoca el permiso y requiere activarlo nuevamente.</p>
+      </section>
       <section aria-labelledby="estado-title" className="card mt-8 px-6 py-5">
         <h2 id="estado-title" className="text-lg font-semibold">Estado de la cuenta</h2>
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
@@ -258,7 +305,7 @@ export default function LawyerProfilePage({ navigate, onUpdated }: { navigate: (
 
               <input id="pf-dni" disabled value={user.dni} className="field" aria-describedby="pf-dni-hint" />
 
-              <p id="pf-dni-hint" className="mt-1.5 text-[13px] text-ink-3">El DNI no puede modificarse: fue validado con Didit.</p>
+              <p id="pf-dni-hint" className="mt-1.5 text-[13px] text-ink-3">{user.cuentaPrueba ? 'Gestioná el DNI cifrado desde la sección de cuenta de prueba. Identidad no verificada.' : 'El DNI no puede modificarse: fue validado con Didit.'}</p>
 
             </div>
 
@@ -266,7 +313,7 @@ export default function LawyerProfilePage({ navigate, onUpdated }: { navigate: (
 
             {renderField('mail', 'Email', 'email')}
 
-            {renderField('nroCelular', 'Teléfono', 'tel')}
+            {renderField('nroCelular', 'Celular / WhatsApp', 'tel')}
 
             {renderField('domicilio', 'Domicilio')}
 

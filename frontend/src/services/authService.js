@@ -5,6 +5,7 @@ export function cerrarSesion() {
     window.dispatchEvent(new Event("sesion"));
 }
 export function obtenerSesion() {
+    if (typeof sessionStorage === 'undefined') return null;
     try {
         const sesion = JSON.parse(sessionStorage.getItem(KEY));
         if (sesion?.token && sesion.expiresAt > Date.now()) return sesion;

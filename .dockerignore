@@ -13,3 +13,5 @@
 **/*.xlsx
 **/*.pdf
 **/*.postman_environment.json
+frontend/test-results
+frontend/playwright-report

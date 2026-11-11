@@ -10,7 +10,7 @@ const NAV_ITEMS: { label: string; target: string }[] = [
   { label: 'Para abogados', target: 'profesionales' },
 ]
 
-export default function Navbar({ navigate, user, onLogout, onSection, admin = false }: { navigate: (p: Page) => void; user: User | null; onLogout: () => void; onSection: (id: string) => void; admin?: boolean }) {
+export default function Navbar({ navigate, user, onLogout, onSection, admin = false, abogado = false, operativa = false }: { navigate: (p: Page) => void; user: User | null; onLogout: () => void; onSection: (id: string) => void; admin?: boolean; abogado?: boolean; operativa?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -43,13 +43,14 @@ export default function Navbar({ navigate, user, onLogout, onSection, admin = fa
         </button>
 
         <div className="hidden md:flex items-center gap-1">
-          {NAV_ITEMS.map(item => (
+          {operativa && <span className="text-sm text-gold-400">Prueba privada · contacto operativo</span>}
+          {(operativa ? [] : NAV_ITEMS).map(item => (
             <button key={item.label} onClick={() => onSection(item.target)} className="text-sm font-medium text-ink-2 hover:text-ink px-3 py-2 rounded-lg transition-colors">{item.label}</button>
           ))}
         </div>
 
         <div className="hidden md:flex items-center gap-2">
-          {user ? (
+          {operativa ? <button className="btn btn-secondary btn-sm" onClick={() => navigate('home')}>Circuito privado</button> : user ? (
             <div className="relative" ref={userMenuRef}>
               <button onClick={() => setUserMenuOpen(o => !o)} aria-expanded={userMenuOpen} aria-haspopup="menu" className="flex items-center gap-2 rounded-full pl-1 pr-2.5 py-1 border border-line-strong hover:bg-white/5 transition-colors">
                 <span className="w-7 h-7 rounded-full bg-gold-500 text-[#0b1020] text-[11px] font-bold grid place-items-center">{user.nombre[0]}{user.apellido[0]}</span>
@@ -62,12 +63,13 @@ export default function Navbar({ navigate, user, onLogout, onSection, admin = fa
                     <p className="text-sm font-semibold">{user.nombre} {user.apellido}</p>
                     <p className="text-xs text-ink-3 truncate">{user.email}</p>
                   </div>
-                  <div className="h-px bg-line my-1" />
+      <div className="h-px bg-line my-1" />
+                  {abogado && <button role="menuitem" className="btn btn-ghost w-full" onClick={() => { navigate('home'); setUserMenuOpen(false) }}>Mi Home profesional</button>}
                   {admin && <button role="menuitem" className="btn btn-ghost w-full" onClick={() => { navigate('admin'); setUserMenuOpen(false) }}>Panel administrativo</button>}
                   {[
                     { label: 'Mis datos', icon: 'user' as const, page: 'profile' as Page },
                     { label: 'Historial de consultas', icon: 'list' as const, page: 'history' as Page },
-                  ].map(item => (
+                  ].filter(item => !abogado || item.page !== 'history').map(item => (
                     <button role="menuitem" key={item.label} onClick={() => { navigate(item.page); setUserMenuOpen(false) }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-ink-2 hover:text-ink hover:bg-white/5">
                       <Icon name={item.icon} className="w-4 h-4" />{item.label}
                     </button>
@@ -94,15 +96,16 @@ export default function Navbar({ navigate, user, onLogout, onSection, admin = fa
 
       {menuOpen && (
         <div className="md:hidden fade-in border-t border-line px-5 pt-2 pb-5">
-          {NAV_ITEMS.map(item => (
+          {(operativa ? [] : NAV_ITEMS).map(item => (
             <button key={item.label} onClick={() => { onSection(item.target); setMenuOpen(false) }} className="w-full text-left py-3 text-[15px] font-medium text-ink-2 hover:text-ink border-b border-line">{item.label}</button>
           ))}
           <div className="pt-4 grid grid-cols-2 gap-2">
-            {user ? (
+            {operativa ? <button onClick={() => { navigate('home'); setMenuOpen(false) }} className="btn btn-secondary col-span-2">Circuito privado</button> : user ? (
               <>
                 {admin && <button onClick={() => { navigate('admin'); setMenuOpen(false) }} className="btn btn-secondary col-span-2">Panel administrativo</button>}
+                {abogado && <button onClick={() => { navigate('home'); setMenuOpen(false) }} className="btn btn-secondary col-span-2">Mi Home profesional</button>}
                 <button onClick={() => { navigate('profile'); setMenuOpen(false) }} className="btn btn-secondary">Mis datos</button>
-                <button onClick={() => { navigate('history'); setMenuOpen(false) }} className="btn btn-secondary">Historial</button>
+                {!abogado && <button onClick={() => { navigate('history'); setMenuOpen(false) }} className="btn btn-secondary">Historial</button>}
                 <button onClick={() => { onLogout(); setMenuOpen(false) }} className="btn btn-ghost col-span-2">Cerrar sesión</button>
               </>
             ) : (
