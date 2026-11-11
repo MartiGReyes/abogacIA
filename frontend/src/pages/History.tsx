@@ -1,80 +1,192 @@
-import { useState } from 'react'
-import { Avatar, Icon, lexiImg, useEscape, type Page } from '../ui'
-import { MOCK_HISTORY } from '../demoData'
+import { useEffect, useState } from "react"
+import { t, uiText, formatNumber } from "../i18n/core"
+import { eliminarDelHistorial, listarHistorial } from "../services/historialService"
+import { Alert, card } from "../product/AuthField"
+import { Modal } from "../product/UI"
+import { dateKey, localDateTime } from "../product/model"
+import { useProduct } from "../product/Store"
+import type { Page } from "../ui"
+import lexiImg from "../imports/mazcotalexi.png"
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// PAGE: HISTORY  (US5 — Consultar historial de consultas)
-// ═══════════════════════════════════════════════════════════════════════════════
+interface Consulta {
+  id: number
+  consulta: string
+  respuesta: string
+  especialidad: string | null
+  creadaEn: string
+}
+const SIN_AREA = "Sin especialidad identificada"
 
 export default function HistoryPage({ navigate }: { navigate: (p: Page) => void }) {
-  const [selected, setSelected] = useState<typeof MOCK_HISTORY[0] | null>(null)
-  const [filter, setFilter] = useState('Todas')
+  const store = useProduct()
+  const [rows, setRows] = useState<Consulta[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [version, setVersion] = useState(0)
+  const [selected, setSelected] = useState<Consulta | null>(null)
+  const [filter, setFilter] = useState("Todas")
+  const [deleting, setDeleting] = useState(false)
 
-  const tipos = ['Todas', ...Array.from(new Set(MOCK_HISTORY.map(h => h.tipo)))]
-  const filtered = filter === 'Todas' ? MOCK_HISTORY : MOCK_HISTORY.filter(h => h.tipo === filter)
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    setError("")
+    listarHistorial()
+      .then((r: Consulta[]) => alive && setRows(r))
+      .catch((e: Error) => alive && setError(e.message))
+      .finally(() => alive && setLoading(false))
+    return () => {
+      alive = false
+    }
+  }, [version])
 
-  useEscape(!!selected, () => setSelected(null))
+  // Las consultas nuevas se guardan mientras el chat está abierto: se recarga al cerrarlo.
+  useEffect(() => {
+    if (!store.chatOpen) setVersion((v) => v + 1)
+  }, [store.chatOpen])
+
+  const area = (c: Consulta) => c.especialidad || SIN_AREA
+  const tipos = ["Todas", ...Array.from(new Set(rows.map(area)))]
+  const filtered = filter === "Todas" ? rows : rows.filter((h) => area(h) === filter)
+  const mes = dateKey().slice(0, 7)
+
+  async function borrar(c: Consulta) {
+    setDeleting(true)
+    try {
+      await eliminarDelHistorial(c.id)
+      setRows((r) => r.filter((x) => x.id !== c.id))
+      setSelected(null)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   return (
-    <div className="max-w-4xl mx-auto px-5 sm:px-8 pt-28 pb-20 fade-up">
-      <button onClick={() => navigate('profile')} className="text-sm text-ink-3 hover:text-ink flex items-center gap-1.5"><Icon name="back" className="w-4 h-4" />Mis datos</button>
-      <h1 className="mt-4 text-[28px] sm:text-[32px] font-bold leading-tight">Historial de consultas</h1>
-      <p className="text-ink-2 mt-1.5">Tus conversaciones con Lexi.</p>
-
-      <dl className="mt-8 grid grid-cols-3 card divide-x divide-line">
-        {[
-          { label: 'Consultas', value: MOCK_HISTORY.length },
-          { label: 'Este mes', value: 3 },
-          { label: 'Especialidades', value: new Set(MOCK_HISTORY.map(h => h.tipo)).size },
-        ].map(s => (
-          <div key={s.label} className="px-4 sm:px-6 py-5">
-            <dt className="text-[13px] text-ink-3">{s.label}</dt>
-            <dd className="mt-1 text-[28px] font-bold tabular leading-none">{s.value}</dd>
+    <div className="min-h-screen pt-24 pb-16">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="font-display font-extrabold text-3xl text-[#102247]">Historial de Lexi</h1>
+            <p className="text-[#657084] mt-1 text-sm">
+              {formatNumber(rows.length)} {t("auth.consultationsWithLexi")}
+            </p>
           </div>
-        ))}
-      </dl>
-
-      <div role="group" aria-label="Filtrar por especialidad" className="mt-8 -mx-5 px-5 sm:mx-0 sm:px-0 flex gap-2 overflow-x-auto no-scrollbar">
-        {tipos.map(t => (
-          <button key={t} onClick={() => setFilter(t)} aria-pressed={filter === t} className={`shrink-0 h-9 px-3.5 rounded-full text-[13px] font-medium border transition-colors ${filter === t ? 'bg-ink text-navy-950 border-ink' : 'border-line-strong text-ink-2 hover:text-ink'}`}>{t}</button>
-        ))}
-      </div>
-
-      <ul className="mt-5 card divide-y divide-line overflow-hidden">
-        {filtered.map(h => (
-          <li key={h.id}>
-            <button onClick={() => setSelected(h)} className="w-full text-left px-5 sm:px-6 py-5 flex gap-4 hover:bg-white/[0.03] transition-colors">
-              <Avatar src={lexiImg} className="w-9 h-9 mt-0.5" />
-              <span className="min-w-0 flex-1">
-                <span className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                  <span className="font-semibold">{h.consulta}</span>
-                  <span className="text-[12px] text-ink-3 tabular whitespace-nowrap">{h.fecha} · {h.hora}</span>
-                </span>
-                <span className="block text-sm text-ink-2 mt-1 line-clamp-1">{h.respuesta}</span>
-                <span className="inline-block mt-2.5 text-[12px] font-medium text-ink-2 border border-line-strong rounded-full px-2.5 py-0.5">{h.tipo}</span>
-              </span>
+          <div className="flex gap-2">
+            <button onClick={() => store.setChatOpen(true)} className="text-sm bg-[#102247] hover:bg-[#1b3566] text-white font-bold px-4 py-2 rounded-xl">
+              Nueva consulta
             </button>
-          </li>
-        ))}
-      </ul>
-
-      {selected && (
-        <div className="fixed inset-0 z-60 grid place-items-center p-4 bg-black/70 backdrop-blur-sm fade-in" onClick={e => { if (e.target === e.currentTarget) setSelected(null) }}>
-          <div role="dialog" aria-modal="true" aria-labelledby="history-title" className="card w-full max-w-lg overflow-hidden shadow-[0_30px_60px_-20px_rgba(0,0,0,0.8)]">
-            <div className="flex items-center gap-3 px-5 h-16 border-b border-line">
-              <Avatar src={lexiImg} className="w-9 h-9" />
-              <div className="flex-1">
-                <h3 id="history-title" className="font-semibold leading-tight">Consulta a Lexi</h3>
-                <p className="text-xs text-ink-3 tabular">{selected.fecha} · {selected.hora} · {selected.tipo}</p>
-              </div>
-              <button onClick={() => setSelected(null)} aria-label="Cerrar" autoFocus className="btn btn-ghost btn-sm w-9 px-0"><Icon name="close" className="w-4.5 h-4.5" /></button>
-            </div>
-            <div className="p-5 space-y-3">
-              <p className="ml-auto max-w-[88%] w-fit bg-gold-500 text-[#0b1020] font-medium text-[14px] leading-relaxed rounded-2xl rounded-tr-md px-3.5 py-2.5">{selected.consulta}</p>
-              <p className="max-w-[92%] bg-navy-800 text-[14px] leading-relaxed rounded-2xl rounded-tl-md px-3.5 py-2.5">{selected.respuesta}</p>
-            </div>
+            <button onClick={() => navigate("profile")} className="text-sm text-[#657084] hover:text-[#102247] border border-[#d8d2c4] px-4 py-2 rounded-xl">
+              {t("auth.myDetails")}
+            </button>
           </div>
         </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          {[
+            [t("auth.totalConsultations"), rows.length],
+            [uiText("Este mes"), rows.filter((r) => dateKey(new Date(r.creadaEn)).startsWith(mes)).length],
+            [t("auth.specialties"), new Set(rows.map((r) => r.especialidad).filter(Boolean)).size],
+          ].map(([label, value]) => (
+            <div key={String(label)} className={`${card} px-4 py-4`}>
+              <p className="text-[#926315] font-bold text-xl">{formatNumber(Number(value))}</p>
+              <p className="text-[#657084] text-xs">{label}</p>
+            </div>
+          ))}
+        </div>
+
+        {tipos.length > 2 && (
+          <div className="flex gap-2 mb-5 flex-wrap" role="group" aria-label="Filtrar por especialidad">
+            {tipos.map((tp) => (
+              <button
+                key={tp}
+                onClick={() => setFilter(tp)}
+                aria-pressed={filter === tp}
+                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
+                  filter === tp ? "bg-[#102247] border-[#102247] text-white" : "border-[#d8d2c4] text-[#657084] hover:border-[#94651c]/50 hover:text-[#102247]"
+                }`}
+              >
+                {uiText(tp)}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-4">
+            <Alert>
+              {error}{" "}
+              <button className="underline font-semibold" onClick={() => setVersion((v) => v + 1)}>
+                Reintentar
+              </button>
+            </Alert>
+          </div>
+        )}
+
+        {loading && !rows.length ? (
+          <p className="loading-line">Cargando historial…</p>
+        ) : !filtered.length && !error ? (
+          <div className={`${card} p-10 text-center`}>
+            <img src={lexiImg} alt="" className="w-16 h-16 object-contain mx-auto mb-3" />
+            <p className="font-bold text-[#102247]">Todavía no consultaste a Lexi</p>
+            <p className="text-sm text-[#657084] mt-1">Tus consultas quedan guardadas acá cuando iniciás sesión como ciudadano.</p>
+            <button onClick={() => store.setChatOpen(true)} className="mt-5 text-sm bg-[#102247] hover:bg-[#1b3566] text-white font-bold px-5 py-2.5 rounded-xl">
+              {t("home.talkToLexi")}
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map((h) => (
+              <button key={h.id} onClick={() => setSelected(h)} className="history-item">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <img src={lexiImg} alt="" className="w-9 h-9 object-contain flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[#102247] text-sm font-medium leading-snug line-clamp-2">{h.consulta}</p>
+                      <p className="text-[#657084] text-xs mt-2 line-clamp-1">{h.respuesta}</p>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <span className="inline-block bg-[#eef1f5] text-[#1f5f9b] text-xs px-2 py-0.5 rounded-full mb-1">{uiText(area(h))}</span>
+                    <p className="text-[#5d6777] text-xs">{localDateTime(h.creadaEn)}</p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {selected && (
+        <Modal title={t("auth.consultationWithLexi")} onClose={() => setSelected(null)}>
+          <p className="text-[#657084] text-xs mb-4">{localDateTime(selected.creadaEn)}</p>
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs text-[#5d6777] font-medium mb-1.5">{t("auth.yourEnquiry")}</p>
+              <div className="bg-[#f0c25a]/15 border border-[#f0c25a]/40 rounded-xl px-4 py-3">
+                <p className="text-[#102247] text-sm leading-relaxed whitespace-pre-wrap">{selected.consulta}</p>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-[#5d6777] font-medium mb-1.5">{t("auth.lexiSReply")}</p>
+              <div className="bg-[#eef1f5] rounded-xl px-4 py-3 max-h-[50vh] overflow-y-auto">
+                <p className="text-[#243653] text-sm leading-relaxed whitespace-pre-wrap">{selected.respuesta}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+              <span className="bg-[#eef1f5] text-[#1f5f9b] text-xs px-3 py-1 rounded-full">{uiText(area(selected))}</span>
+              <div className="flex gap-2">
+                <button disabled={deleting} onClick={() => void borrar(selected)} className="text-sm text-red-700 border border-red-500/30 px-3 py-1.5 rounded-xl disabled:opacity-50">
+                  Eliminar
+                </button>
+                <button onClick={() => setSelected(null)} className="text-sm text-[#657084] hover:text-[#102247] px-3 py-1.5">
+                  {t("auth.close")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   )

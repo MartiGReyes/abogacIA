@@ -33,6 +33,21 @@ Los usuarios que registres se guardan en tu computadora y siguen ahí la próxim
 - **La verificación con Didit dice que no está disponible:** falta la API Key. Abrí el archivo `.env` con el Bloc de notas, pegá la clave después de `DIDIT_API_KEY=` y volvé a abrir `iniciar.bat`.
 - **Otro error:** sacale una captura a la ventana y mandásela a quien mantiene el proyecto.
 
+## Frontend integrado con el diseño de Figma
+
+`frontend/` usa el diseño *Responsive Legal Platform Design* conectado a los microservicios. El frontend anterior quedó como respaldo en `frontend-anterior/` (no lo usa Docker).
+
+| Pantalla | Ruta | Backend |
+| --- | --- | --- |
+| Inicio, catálogo, perfil público y Lexi | `/` | catálogo y casos públicos (abogados), Lexi (n8n) |
+| Contacto por WhatsApp | modal desde el catálogo o Lexi | `POST /api/abogados/contacto/whatsapp` (ahora guarda una copia) |
+| Mis consultas (ciudadano) | `/mis-consultas` | `GET /api/abogados/contactos/mios` |
+| Historial de Lexi (ciudadano) | `/historial` | `GET/POST/DELETE /api/ciudadanos/me/consultas-lexi` |
+| Panel del abogado | `/panel`, `/panel/estadisticas` | `GET /api/abogados/me/contactos` |
+| Mis casos (abogado) | `/panel/casos` | `GET/POST/PUT/DELETE /api/abogados/me/casos`, público `GET /api/abogados/catalogo/{id}/casos` |
+
+Las tablas nuevas (`contacto_whatsapp`, `caso_profesional`, `whatsapp_autorizacion` y `consulta_lexi`) se crean solas al iniciar, solo en el entorno principal (`ddl-auto=update`). Los entornos aislados de prueba no se modifican.
+
 ## Para quien desarrolla
 
 - Detalle de Docker, variables y comandos: [DOCKER.md](DOCKER.md).

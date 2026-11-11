@@ -1,17 +1,15 @@
-import { useState } from 'react'
-import { Avatar, Field, Icon, Notice, lexiImg, type Page } from '../ui'
-import { CodeInput, SectionLabel } from '../identidad'
-import { confirmarRegistro, identidadCiudadano, registrarCiudadano } from '../services/ciudadanoService'
+import { useState } from "react"
+import { t, uiText } from "../i18n/core"
+import { confirmarRegistro, identidadCiudadano, registrarCiudadano } from "../services/ciudadanoService"
+import { Alert, InputField, Spinner, card, primaryButton } from "../product/AuthField"
+import type { Page } from "../ui"
+import lexiImg from "../imports/mazcotalexi.png"
 
-const BENEFICIOS = ['Buscar y contactar abogados', 'Consultar a Lexi sin límites', 'Guardar tus abogados favoritos', 'Ver el historial de consultas', 'Recibir notificaciones legales']
-
-// El input nativo de fecha usa el idioma del navegador; con texto se garantiza dd/mm/aaaa.
+// Con texto se garantiza dd/mm/aaaa (el input de fecha nativo depende del idioma del navegador).
 function mascaraFecha(v: string) {
-  const d = v.replace(/\D/g, '').slice(0, 8)
-  return [d.slice(0, 2), d.slice(2, 4), d.slice(4)].filter(Boolean).join('/')
+  const d = v.replace(/\D/g, "").slice(0, 8)
+  return [d.slice(0, 2), d.slice(2, 4), d.slice(4)].filter(Boolean).join("/")
 }
-
-// Devuelve aaaa-mm-dd si la fecha existe, o null.
 function fechaIso(v: string) {
   const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(v)
   if (!m) return null
@@ -21,126 +19,231 @@ function fechaIso(v: string) {
   return `${anio}-${mes}-${dia}`
 }
 
+const Check = () => (
+  <svg className="w-4 h-4 text-[#926315] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+  </svg>
+)
+
 export default function RegisterCitizenPage({ navigate }: { navigate: (p: Page) => void }) {
-  const [form, setForm] = useState({ nombre: '', apellido: '', dni: '', nacimiento: '', email: '', telefono: '', password: '', confirmPassword: '', terms: false })
+  const [form, setForm] = useState({ nombre: "", apellido: "", dni: "", nacimiento: "", email: "", telefono: "", password: "", confirmPassword: "", terms: false })
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [step, setStep] = useState<'form' | 'verification'>('form')
-  const [codigo, setCodigo] = useState('')
-  const [error, setError] = useState('')
+  const [step, setStep] = useState<"form" | "verification">("form")
+  const [codigo, setCodigo] = useState("")
+  const [error, setError] = useState("")
   const [cargando, setCargando] = useState(false)
 
-  function set(k: keyof typeof form, v: string | boolean) { setForm(f => ({ ...f, [k]: v })) }
+  const set = (k: keyof typeof form, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }))
 
   function validate() {
     const e: Record<string, string> = {}
-    if (!form.nombre.trim()) e.nombre = 'Requerido'
-    if (!form.apellido.trim()) e.apellido = 'Requerido'
-    if (!/^\d{7,8}$/.test(form.dni)) e.dni = 'DNI inválido (7-8 dígitos)'
+    if (!form.nombre.trim()) e.nombre = t("auth.required")
+    if (!form.apellido.trim()) e.apellido = t("auth.required")
+    if (!/^\d{7,8}$/.test(form.dni)) e.dni = t("auth.invalidDni78Digits")
     const nacimiento = fechaIso(form.nacimiento)
-    if (!form.nacimiento) e.nacimiento = 'Requerido'
-    else if (!nacimiento) e.nacimiento = 'Fecha inválida (dd/mm/aaaa)'
-    else if (nacimiento >= new Date().toLocaleDateString('sv-SE')) e.nacimiento = 'Ingresá una fecha anterior a hoy'
-    if (!/\S+@\S+\.\S+/.test(form.email)) e.email = 'Email inválido'
-    if (form.password.length < 8) e.password = 'Mínimo 8 caracteres'
-    if (form.password !== form.confirmPassword) e.confirmPassword = 'Las contraseñas no coinciden'
-    if (!form.terms) e.terms = 'Debés aceptar los términos'
+    if (!form.nacimiento) e.nacimiento = t("auth.required")
+    else if (!nacimiento) e.nacimiento = "Fecha inválida (dd/mm/aaaa)"
+    else if (nacimiento >= new Date().toLocaleDateString("sv-SE")) e.nacimiento = "Ingresá una fecha anterior a hoy"
+    if (!/\S+@\S+\.\S+/.test(form.email)) e.email = t("auth.invalidEmail")
+    if (form.password.length < 8) e.password = t("auth.atLeast8Characters")
+    if (form.password !== form.confirmPassword) e.confirmPassword = t("auth.passwordsDoNotMatch")
+    if (!form.terms) e.terms = t("auth.youMustAcceptTheTerms")
     return e
   }
 
   async function ejecutar(accion: () => Promise<void>) {
-    setCargando(true); setError('')
-    try { await accion() } catch (e) { setError((e as Error).message) } finally { setCargando(false) }
+    setCargando(true)
+    setError("")
+    try {
+      await accion()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setCargando(false)
+    }
   }
 
   function handleSubmit(ev: React.FormEvent) {
     ev.preventDefault()
-    const e = validate(); setErrors(e)
+    const e = validate()
+    setErrors(e)
     if (Object.keys(e).length) return
-    ejecutar(async () => {
+    void ejecutar(async () => {
       await registrarCiudadano({
-        nombre: form.nombre.trim(), apellido: form.apellido.trim(), dni: form.dni, fechaNacimiento: fechaIso(form.nacimiento)!,
-        mail: form.email.trim(), nroCelular: form.telefono.trim(), contrasena: form.password,
+        nombre: form.nombre.trim(),
+        apellido: form.apellido.trim(),
+        dni: form.dni,
+        fechaNacimiento: fechaIso(form.nacimiento)!,
+        mail: form.email.trim(),
+        nroCelular: form.telefono.trim(),
+        contrasena: form.password,
       })
-      setCodigo(''); setStep('verification')
+      setCodigo("")
+      setStep("verification")
     })
   }
 
   function handleVerify(ev: React.FormEvent) {
     ev.preventDefault()
-    ejecutar(async () => {
+    void ejecutar(async () => {
       await confirmarRegistro(codigo)
       // La contraseña recién ingresada habilita el acceso temporal para Didit; después se descarta.
-      // Si falla, la página de verificación pide ingresar de nuevo: el código ya fue usado.
       await identidadCiudadano.accederRegistro(form.email.trim(), form.password).catch(() => {})
-      setForm(f => ({ ...f, password: '', confirmPassword: '' }))
-      navigate('verify-citizen')
+      setForm((f) => ({ ...f, password: "", confirmPassword: "" }))
+      navigate("verify-citizen")
     })
   }
 
-  const spinner = <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
-
-  if (step === 'verification') {
+  if (step === "verification") {
     return (
-      <div className="min-h-screen px-5 sm:px-8 pt-32 pb-20 flex justify-center">
-        <div className="w-full max-w-[420px] text-center fade-up">
-          <span className="mx-auto w-14 h-14 rounded-2xl border border-line-strong bg-white/[0.04] grid place-items-center text-sky-400"><Icon name="mail" className="w-6 h-6" /></span>
-          <p className="mt-5 text-[12px] font-bold tracking-[0.08em] uppercase text-gold-400">Verificación de email</p>
-          <h1 className="mt-2 text-[30px] font-bold leading-tight">Revisá tu correo</h1>
-          <p className="mt-3 text-ink-2">Enviamos un código de 6 dígitos a <span className="font-semibold text-ink">{form.email}</span>.<br />Ingresalo para continuar con tu cuenta.</p>
-          <form onSubmit={handleVerify} className="card bg-navy-850 border-line-strong mt-8 p-6 text-left">
-            <label htmlFor="verification-code" className="label text-center">Código de verificación</label>
-            <CodeInput id="verification-code" value={codigo} onChange={v => { setCodigo(v); setError('') }} invalid={!!error} />
-            {error && <div className="mt-3"><Notice kind="err" title="No pudimos verificar el código">{error}</Notice></div>}
-            <button type="submit" disabled={cargando || codigo.length !== 6} className="btn btn-primary btn-lg w-full mt-5">{cargando ? <>{spinner}Verificando…</> : 'Verificar y continuar'}</button>
-          </form>
-          <p className="mt-4 rounded-xl border border-line bg-navy-850 px-4 py-3 text-[13px] text-ink-2">
-            En desarrollo el código no se envía por email: aparece en los logs (<code className="text-sky-400">docker compose logs ciudadanos</code>).
-          </p>
+      <div className="min-h-screen pt-24 pb-16 flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-7">
+            <div className="w-16 h-16 bg-[#7bc8f6]/10 border border-[#7bc8f6]/25 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-[#1f5f9b]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M3 8l9 6 9-6M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <p className="text-[#926315] text-xs font-bold uppercase tracking-wider mb-2">{t("auth.emailVerification")}</p>
+            <h1 className="font-display font-extrabold text-3xl text-[#102247]">{t("auth.checkYourInbox")}</h1>
+            <p className="text-[#657084] mt-3 text-sm leading-relaxed">
+              {t("auth.weSentA6DigitCodeTo")} <strong className="text-[#102247]">{form.email}</strong>. Ingresalo para continuar con la validación de identidad.
+            </p>
+          </div>
+          <div className={`${card} p-7`}>
+            <form onSubmit={handleVerify}>
+              <label htmlFor="verification-code" className="block text-xs font-semibold text-[#34445f] mb-2 text-center">
+                {t("auth.verificationCode")}
+              </label>
+              <input
+                id="verification-code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                autoFocus
+                value={codigo}
+                aria-invalid={!!error}
+                onChange={(e) => {
+                  setCodigo(e.target.value.replace(/\D/g, "").slice(0, 6))
+                  setError("")
+                }}
+                placeholder="000000"
+                className={`w-full bg-[#fbf8ef] border rounded-xl px-4 py-3.5 text-center text-2xl tracking-[0.45em] font-bold text-[#102247] placeholder-[#a3abb8] focus:outline-none transition-colors ${
+                  error ? "border-red-500/70" : "border-[#d8d2c4] focus:border-[#94651c]/70"
+                }`}
+              />
+              {error && <p className="text-red-700 text-xs text-center mt-2">{error}</p>}
+              <button type="submit" disabled={cargando || codigo.length !== 6} className={`${primaryButton} mt-5`}>
+                {cargando ? (
+                  <>
+                    <Spinner /> {t("auth.verifying")}
+                  </>
+                ) : (
+                  "Verificar y continuar"
+                )}
+              </button>
+            </form>
+            <div className="mt-5 pt-5 border-t border-[#d8d2c4]/40 text-center">
+              <button type="button" onClick={() => setStep("form")} className="text-xs text-[#1f5f9b] hover:underline">
+                {t("auth.changeEmailAddress")}
+              </button>
+            </div>
+          </div>
+          <div className="mt-4 bg-[#eef1f5]/60 border border-[#d8d2c4]/40 rounded-xl px-4 py-3 text-center">
+            <p className="text-xs text-[#657084]">
+              En desarrollo el código no se envía por email: abrí <strong>ver-codigos.bat</strong> o ejecutá <code>docker compose logs ciudadanos</code>.
+            </p>
+          </div>
         </div>
       </div>
     )
   }
 
-  function renderField(id: keyof typeof form, label: string, type = 'text', placeholder?: string, autoComplete?: string) {
-    return <Field label={label} id={String(id)} type={type} value={form[id] as string} onChange={v => set(id, id === 'dni' ? v.replace(/\D/g, '').slice(0, 8) : id === 'nacimiento' ? mascaraFecha(v) : v)} placeholder={placeholder} error={errors[id]} autoComplete={autoComplete} />
-  }
+  const field = (id: keyof typeof form, label: string, type = "text", placeholder?: string, autoComplete?: string) => (
+    <InputField
+      label={uiText(label)}
+      id={`rc-${id}`}
+      type={type}
+      value={form[id] as string}
+      onChange={(v) => set(id, id === "dni" ? v.replace(/\D/g, "").slice(0, 8) : id === "nacimiento" ? mascaraFecha(v) : v)}
+      placeholder={placeholder}
+      error={errors[id]}
+      autoComplete={autoComplete}
+    />
+  )
 
   return (
-    <div className="max-w-6xl mx-auto px-5 sm:px-8 pt-28 pb-20 grid lg:grid-cols-[minmax(0,1fr)_340px] gap-10 lg:gap-14 items-start">
-      <div className="fade-up">
-        <h1 className="text-[32px] sm:text-[36px] font-bold leading-[1.1]">Creá tu cuenta en AbogacIA</h1>
-        <p className="mt-3 text-ink-2 leading-relaxed">Registrate para encontrar abogados y realizar consultas de orientación legal.</p>
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4" noValidate>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{renderField('nombre', 'Nombre', 'text', 'Juan', 'given-name')}{renderField('apellido', 'Apellido', 'text', 'García', 'family-name')}</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{renderField('dni', 'DNI', 'text', '12345678')}{renderField('nacimiento', 'Fecha de nacimiento', 'text', 'dd/mm/aaaa', 'bday')}</div>
-          {renderField('email', 'Email', 'email', 'juan@email.com', 'email')}
-          {renderField('telefono', 'Teléfono', 'tel', '+54 351 123 4567', 'tel')}
-          {renderField('password', 'Contraseña', 'password', 'Mínimo 8 caracteres', 'new-password')}
-          {renderField('confirmPassword', 'Confirmar contraseña', 'password', 'Repetí tu contraseña', 'new-password')}
-          <div className="pt-1">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input type="checkbox" checked={form.terms} onChange={e => set('terms', e.target.checked)} className="mt-0.5 w-4.5 h-4.5 accent-gold-500 shrink-0" aria-invalid={!!errors.terms} />
-              <span className="text-sm text-ink-2">Acepto los <a href="#" className="link">términos y condiciones</a> y la <a href="#" className="link">política de privacidad</a>.</span>
-            </label>
-            {errors.terms && <p className="mt-1.5 text-[13px] text-err ml-7.5">{errors.terms}</p>}
+    <div className="min-h-screen pt-24 pb-16">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex gap-12 items-start">
+          <div className="flex-1 max-w-lg">
+            <div className="mb-8">
+              <h1 className="font-display font-extrabold text-3xl text-[#102247]">{t("auth.createYourAbogaciaAccount")}</h1>
+              <p className="text-[#657084] mt-2">{t("auth.registerToFindLawyersAndRequestInitialLegalGuidance")}</p>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {field("nombre", "auth.firstName", "text", "Juan", "given-name")}
+                {field("apellido", "auth.lastName", "text", "García", "family-name")}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {field("dni", "DNI", "text", "12345678")}
+                {field("nacimiento", "auth.dateOfBirth", "text", "dd/mm/aaaa", "bday")}
+              </div>
+              {field("email", "Email", "email", "juan@email.com", "email")}
+              {field("telefono", "auth.phone", "tel", "+54 351 123 4567", "tel")}
+              {field("password", "auth.password", "password", t("auth.atLeast8Characters"), "new-password")}
+              {field("confirmPassword", "auth.confirmPassword", "password", t("auth.repeatYourPassword"), "new-password")}
+              <div>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input type="checkbox" checked={form.terms} onChange={(e) => set("terms", e.target.checked)} className="mt-0.5 w-4 h-4" aria-invalid={!!errors.terms} />
+                  <span className="text-sm text-[#657084]">Acepto los términos y condiciones y la política de privacidad de abogacIA.</span>
+                </label>
+                {errors.terms && <p className="mt-1 text-xs text-red-700 ml-7">{errors.terms}</p>}
+              </div>
+              <Alert kind="info">Después de confirmar tu email vas a validar tu identidad con Didit, con tu DNI y una selfie.</Alert>
+              {error && <Alert>{error}</Alert>}
+              <button type="submit" disabled={cargando} className={`${primaryButton} mt-2`}>
+                {cargando ? (
+                  <>
+                    <Spinner /> Creando cuenta…
+                  </>
+                ) : (
+                  t("auth.createAccount")
+                )}
+              </button>
+            </form>
+            <p className="text-center text-sm text-[#657084] mt-5">
+              {t("auth.alreadyHaveAnAccount")}{" "}
+              <button onClick={() => navigate("login")} className="text-[#926315] hover:underline font-medium">
+                {t("auth.signIn")}
+              </button>
+            </p>
           </div>
-          <Notice kind="info" title="Validación de identidad">Después de confirmar tu email vas a validar tu identidad con Didit, con tu DNI y una selfie.</Notice>
-          {error && <Notice kind="err" title="No pudimos crear tu cuenta">{error}</Notice>}
-          <button type="submit" disabled={cargando} className="btn btn-primary btn-lg w-full">{cargando ? <>{spinner}Creando cuenta…</> : 'Crear cuenta'}</button>
-        </form>
-        <p className="mt-6 text-sm text-ink-2 text-center">¿Ya tenés una cuenta? <button onClick={() => navigate('login')} className="link">Iniciá sesión</button></p>
-      </div>
-      <aside className="lg:sticky lg:top-24">
-        <div className="card bg-navy-850 border-line-strong p-7 text-center">
-          <Avatar src={lexiImg} className="mx-auto w-16 h-16 ring-1 ring-white/15" />
-          <p className="mt-5 text-lg font-semibold">Con tu cuenta podés:</p>
-          <ul className="mt-4 space-y-2.5 text-left inline-block">
-            {BENEFICIOS.map(b => <li key={b} className="flex items-center gap-2.5 text-[14px] text-ink-2"><Icon name="check" className="w-4 h-4 text-gold-400" stroke={2.25} />{b}</li>)}
-          </ul>
+
+          <div className="hidden lg:flex flex-col items-center gap-6 flex-shrink-0 w-72 sticky top-24">
+            <div className={`${card} p-6 text-center w-full`}>
+              <img src={lexiImg} alt="Lexi" className="w-28 h-28 object-contain mx-auto mb-4" />
+              <h3 className="font-display font-bold text-[#102247] mb-3">{t("auth.withYourAccountYouCan")}</h3>
+              <ul className="text-sm text-[#657084] space-y-2 text-left">
+                {["Contactar abogados por WhatsApp", "auth.consultLexiWithoutLimits", "Guardar tus consultas enviadas", "auth.viewConsultationHistory"].map((b) => (
+                  <li key={b} className="flex items-start gap-2">
+                    <Check />
+                    {uiText(b)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <p className="text-xs text-[#657084] text-center">
+              {t("auth.areYouALawyer")}{" "}
+              <button onClick={() => navigate("register-lawyer")} className="text-[#926315] hover:underline font-medium">
+                {t("auth.registerAsAProfessional")}
+              </button>
+            </p>
+          </div>
         </div>
-        <p className="mt-4 text-[13px] text-ink-3 text-center">¿Sos abogado/a? <button onClick={() => navigate('register-lawyer')} className="link">Registrate como profesional</button></p>
-        <div className="mt-6 hidden lg:block"><SectionLabel>Tus datos están protegidos</SectionLabel><p className="mt-1.5 text-[13px] text-ink-3 leading-relaxed">Usamos tu DNI solo para verificar que seas vos.</p></div>
-      </aside>
+      </div>
     </div>
   )
 }

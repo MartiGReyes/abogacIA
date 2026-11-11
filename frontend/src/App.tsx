@@ -1,91 +1,120 @@
-import { useEffect, useState } from 'react'
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { AuthProvider, useSesion } from './AuthContext'
-import { cerrarSesion } from './services/authService'
-import { obtenerMisDatos } from './services/ciudadanoService'
-import { useNavegar, type User } from './ui'
-import Navbar from './Navbar'
-import HomePage from './pages/Home'
-import LoginPage from './pages/Login'
-import RegisterCitizenPage from './pages/RegisterCitizen'
-import VerifyCitizenPage from './pages/VerifyCitizen'
-import RegisterLawyerPage from './pages/RegisterLawyer'
-import LawyerPendingPage from './pages/LawyerPending'
-import LawyerProfilePage from './pages/LawyerProfile'
-import { obtenerMiPerfilAbogado } from './services/abogadoService'
-import ProfilePage from './pages/Profile'
-import HistoryPage from './pages/History'
-import LawyerDashboard, { AbogadoProtegido, LawyerAdviceDetail } from './pages/LawyerDashboard'
-import { AdminUsuarios, AdminPadron } from './pages/AdminGestion'
-import { AdminProtegido, AdminPanel, AdminAbogados, AdminIdentidad } from './pages/Admin'
+import { useEffect, type ReactNode } from "react"
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom"
+import { AuthProvider, useSesion } from "./AuthContext"
+import { cerrarSesion } from "./services/authService"
+import { RUTAS, useNavegar, type Page } from "./ui"
+import { useLocale } from "./i18n/useLocale"
+import { ProductProvider, useProduct } from "./product/Store"
+import { Navigation } from "./product/Navigation"
+import { HomePage } from "./product/Home"
+import { Dashboard } from "./product/Dashboard"
+import { CitizenConsultations, ProductOverlays } from "./product/PublicExperience"
+import LoginPage from "./pages/Login"
+import RegisterCitizenPage from "./pages/RegisterCitizen"
+import VerifyCitizenPage from "./pages/VerifyCitizen"
+import RegisterLawyerPage from "./pages/RegisterLawyer"
+import LawyerPendingPage from "./pages/LawyerPending"
+import LawyerProfilePage from "./pages/LawyerProfile"
+import ProfilePage from "./pages/Profile"
+import HistoryPage from "./pages/History"
+import { AdminUsuarios, AdminPadron } from "./pages/AdminGestion"
+import { AdminProtegido, AdminPanel, AdminAbogados, AdminIdentidad } from "./pages/Admin"
 
-interface Sesion { rol: 'CIUDADANO' | 'ABOGADO' | 'ADMIN'; idUsuario: string }
+type Rol = "CIUDADANO" | "ABOGADO" | "ADMIN"
+
+function Solo({ rol, children }: { rol: Rol; children: ReactNode }) {
+  const sesion = useSesion() as { rol: Rol } | null
+  if (!sesion) return <Navigate to="/iniciar-sesion" replace />
+  if (sesion.rol !== rol) return <Navigate to={sesion.rol === "ABOGADO" ? "/panel" : "/"} replace />
+  return <>{children}</>
+}
+
+/** Pantallas heredadas (Didit, registro profesional, admin): mismo contenido, paleta del diseño. */
+const Legacy = ({ children }: { children: ReactNode }) => <div className="legacy-page">{children}</div>
+
+function paginaActual(pathname: string): Page | undefined {
+  const entry = (Object.entries(RUTAS) as [Page, string][]).find(([, ruta]) => ruta === pathname)
+  if (pathname.startsWith("/admin")) return "admin"
+  return entry?.[0]
+}
 
 function Shell() {
-  const sesion = useSesion() as Sesion | null
+  const store = useProduct()
+  const sesion = store.sesion
   const navigate = useNavegar()
   const location = useLocation()
-  const [perfil, setPerfil] = useState<(User & { cuentaPrueba?: boolean }) | null>(null)
-  const [datosVersion, setDatosVersion] = useState(0)
-  const [lexiSignal, setLexiSignal] = useState(0)
+  const page = paginaActual(location.pathname)
+  const pageForNav: Page | undefined = page === "profile" && sesion?.rol === "ABOGADO" ? "lawyer-profile" : page
 
-  // La barra muestra el nombre del ciudadano; las cuentas sin perfil muestran su rol.
+  // Ir a una sección de la home desde otra pantalla (por ejemplo "Buscar abogados").
+  const { homeSection, setHomeSection } = store
   useEffect(() => {
-    if (!sesion || !['CIUDADANO', 'ABOGADO'].includes(sesion.rol)) return
-    let activo = true
-    const datos = sesion.rol === 'ABOGADO' ? obtenerMiPerfilAbogado() : obtenerMisDatos()
-    datos.then((c: { nombre: string; apellido: string; mail: string; cuentaPrueba?: boolean }) => { if (activo) setPerfil({ nombre: c.nombre, apellido: c.apellido, email: c.mail, cuentaPrueba: c.cuentaPrueba }) })
-      .catch(() => { if (activo) setPerfil(null) })
-    return () => { activo = false }
-  }, [sesion, datosVersion])
-  const user: User | null = !sesion ? null
-    : sesion.rol === 'ABOGADO' ? perfil ?? { nombre: 'Abogado', apellido: '', email: '' }
-    : sesion.rol === 'CIUDADANO' ? perfil
-    : { nombre: sesion.rol === 'ADMIN' ? 'Administrador' : 'Abogado', apellido: '', email: '' }
+    if (location.pathname !== "/" || !homeSection) return
+    const id = setTimeout(() => {
+      document.getElementById(homeSection)?.scrollIntoView({ behavior: "smooth" })
+      setHomeSection("")
+    }, 80)
+    return () => clearTimeout(id)
+  }, [location.pathname, homeSection, setHomeSection])
 
-  function handleLogout() { cerrarSesion(); navigate('home') }
-
-  function goToSection(id: string) {
-    // Desde el inicio no se navega: subir y volver a bajar hacía saltar la página.
-    if (id === 'lexi') { if (location.pathname !== '/') navigate('home'); setLexiSignal(n => n + 1); return }
-    const scroll = () => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
-    if (location.pathname === '/') scroll()
-    else { navigate('home'); setTimeout(scroll, 60) }
+  function handleLogout() {
+    cerrarSesion()
+    navigate("home")
   }
 
-  const ciudadano = sesion?.rol === 'CIUDADANO'
-
   return (
-    <div className="min-h-screen bg-navy-950 text-ink">
-      <Navbar navigate={navigate} user={user} onLogout={handleLogout} onSection={goToSection} admin={sesion?.rol === 'ADMIN'} abogado={sesion?.rol === 'ABOGADO'} />
-      <main>
-        {import.meta.env.VITE_DASHBOARD_TEST === 'true' && <p className="fixed bottom-0 inset-x-0 z-50 text-center bg-gold-400 text-navy-950 text-xs font-bold py-1">ENTORNO AISLADO · CUENTAS Y ACTIVIDAD SINTÉTICAS DE PRUEBA</p>}
-        <Routes>
-          <Route path="/" element={sesion?.rol === 'ABOGADO' ? <AbogadoProtegido><LawyerDashboard nombre={perfil?.nombre} cuentaPrueba={perfil?.cuentaPrueba} /></AbogadoProtegido> : <HomePage navigate={navigate} user={user} lexiSignal={lexiSignal} onLexiHandled={() => setLexiSignal(0)} />} />
-          <Route path="/dashboard-abogado" element={<AbogadoProtegido><Navigate to="/" replace /></AbogadoProtegido>} />
-          <Route path="/dashboard-abogado/asesoramientos/:id" element={<AbogadoProtegido><LawyerAdviceDetail /></AbogadoProtegido>} />
-          <Route path="/iniciar-sesion" element={<LoginPage navigate={navigate} />} />
-          <Route path="/admin/iniciar-sesion" element={<LoginPage navigate={navigate} admin />} />
-          <Route path="/admin" element={<AdminProtegido><AdminPanel /></AdminProtegido>} />
-          <Route path="/admin/abogados" element={<AdminProtegido><AdminAbogados /></AdminProtegido>} />
-          <Route path="/admin/usuarios" element={<AdminProtegido><AdminUsuarios /></AdminProtegido>} />
-          <Route path="/admin/padron" element={<AdminProtegido><AdminPadron /></AdminProtegido>} />
-          <Route path="/admin/identidad" element={<AdminProtegido><AdminIdentidad /></AdminProtegido>} />
-          <Route path="/registro" element={<RegisterCitizenPage navigate={navigate} />} />
-          {/* Didit vuelve a estas dos URLs al terminar la verificación. */}
-          <Route path="/verificar-identidad-ciudadano" element={<VerifyCitizenPage navigate={navigate} />} />
-          <Route path="/registro-abogado" element={<RegisterLawyerPage navigate={navigate} />} />
-          <Route path="/cuenta-profesional" element={<LawyerPendingPage navigate={navigate} />} />
-          <Route path="/mis-datos" element={ciudadano ? <ProfilePage navigate={navigate} onUpdated={() => setDatosVersion(v => v + 1)} /> : sesion?.rol === 'ABOGADO' ? <LawyerProfilePage navigate={navigate} onUpdated={() => setDatosVersion(v => v + 1)} /> : <Navigate to="/iniciar-sesion" replace />} />
-          <Route path="/historial" element={sesion?.rol === 'ABOGADO' ? <Navigate to="/" replace /> : sesion ? <HistoryPage navigate={navigate} /> : <Navigate to="/iniciar-sesion" replace />} />
-          <Route path="/verificar-identidad" element={<Navigate to="/registro-abogado" replace />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
+    <div className="min-h-screen bg-[#f7f2e7] text-[#102247]">
+      <Navigation navigate={navigate} user={store.user} onLogout={handleLogout} page={pageForNav} />
+      <div id="main-content" tabIndex={-1} className="main-anchor" />
+      <ProductOverlays navigate={navigate} />
+      <Routes>
+        <Route path="/" element={sesion?.rol === "ABOGADO" ? <Navigate to="/panel" replace /> : <HomePage navigate={navigate} user={store.user} />} />
+        <Route path="/panel" element={<Solo rol="ABOGADO"><Dashboard section="dashboard" navigate={navigate} /></Solo>} />
+        <Route path="/panel/casos" element={<Solo rol="ABOGADO"><Dashboard section="cases" navigate={navigate} /></Solo>} />
+        <Route path="/panel/estadisticas" element={<Solo rol="ABOGADO"><Dashboard section="statistics" navigate={navigate} /></Solo>} />
+        <Route path="/dashboard-abogado/*" element={<Navigate to="/panel" replace />} />
+        <Route path="/iniciar-sesion" element={<LoginPage navigate={navigate} />} />
+        <Route path="/admin/iniciar-sesion" element={<LoginPage navigate={navigate} admin />} />
+        <Route path="/admin" element={<Legacy><AdminProtegido><AdminPanel /></AdminProtegido></Legacy>} />
+        <Route path="/admin/abogados" element={<Legacy><AdminProtegido><AdminAbogados /></AdminProtegido></Legacy>} />
+        <Route path="/admin/usuarios" element={<Legacy><AdminProtegido><AdminUsuarios /></AdminProtegido></Legacy>} />
+        <Route path="/admin/padron" element={<Legacy><AdminProtegido><AdminPadron /></AdminProtegido></Legacy>} />
+        <Route path="/admin/identidad" element={<Legacy><AdminProtegido><AdminIdentidad /></AdminProtegido></Legacy>} />
+        <Route path="/registro" element={<RegisterCitizenPage navigate={navigate} />} />
+        {/* Didit vuelve a estas dos URLs al terminar la verificación. */}
+        <Route path="/verificar-identidad-ciudadano" element={<Legacy><VerifyCitizenPage navigate={navigate} /></Legacy>} />
+        <Route path="/registro-abogado" element={<Legacy><RegisterLawyerPage navigate={navigate} /></Legacy>} />
+        <Route path="/cuenta-profesional" element={<Legacy><LawyerPendingPage navigate={navigate} /></Legacy>} />
+        <Route
+          path="/mis-datos"
+          element={
+            sesion?.rol === "CIUDADANO" ? (
+              <ProfilePage navigate={navigate} onUpdated={store.refreshUser} />
+            ) : sesion?.rol === "ABOGADO" ? (
+              <Legacy><LawyerProfilePage navigate={navigate} onUpdated={store.refreshUser} /></Legacy>
+            ) : (
+              <Navigate to="/iniciar-sesion" replace />
+            )
+          }
+        />
+        <Route path="/mis-consultas" element={<Solo rol="CIUDADANO"><CitizenConsultations navigate={navigate} /></Solo>} />
+        <Route path="/historial" element={<Solo rol="CIUDADANO"><HistoryPage navigate={navigate} /></Solo>} />
+        <Route path="/verificar-identidad" element={<Navigate to="/registro-abogado" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </div>
   )
 }
 
 export default function App() {
-  return <AuthProvider><BrowserRouter><Shell /></BrowserRouter></AuthProvider>
+  useLocale()
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <ProductProvider>
+          <Shell />
+        </ProductProvider>
+      </BrowserRouter>
+    </AuthProvider>
+  )
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { DemoHint, Icon, Notice, type Page } from '../ui'
-import { SPECIALTIES } from '../demoData'
+// Mismas especialidades que valida RegistrarAbogadoGestor.ESPECIALIDADES.
+const SPECIALTIES = ['Derecho de Familia', 'Derecho Laboral', 'Derecho Penal', 'Derecho Civil', 'Derecho Comercial', 'Derecho Inmobiliario', 'Derecho Administrativo', 'Derecho Tributario']
 import { Card, CodeInput, DiditStart, DiditWaiting, SectionLabel, Stepper, esperandoDidit, type Aviso, type EstadoIdentidad } from '../identidad'
 import { accesoRegistroVigente, avisoIdentidad, cerrarAccesoRegistro, confirmarAbogado, consultarIdentidad,
   crearCuentaAbogado, estadoIdentidad, iniciarIdentidad, iniciarSolicitudAbogado } from '../services/abogadoService'

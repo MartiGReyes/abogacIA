@@ -212,7 +212,7 @@ export default function LawyerProfilePage({ navigate, onUpdated }: { navigate: (
 
         </div>
 
-        <button onClick={() => navigate('history')} className="btn btn-secondary btn-sm"><Icon name="list" className="w-4 h-4" />Historial de consultas</button>
+        <button onClick={() => navigate('dashboard')} className="btn btn-secondary btn-sm"><Icon name="list" className="w-4 h-4" />Mi panel</button>
 
       </div>
 

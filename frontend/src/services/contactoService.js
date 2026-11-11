@@ -11,6 +11,16 @@ export async function obtenerCatalogo(signal) {
     const data = await r.json(); if (!Array.isArray(data)) throw new Error('El catálogo devolvió una respuesta inválida.');
     return data.map(adaptarPerfil);
 }
+async function listarContactos(url) {
+    const r = await fetchAutenticado(url, { cache: 'no-store' });
+    const data = await r.json().catch(() => null);
+    if (!r.ok || !Array.isArray(data)) throw new Error(data?.error || 'No se pudieron cargar las consultas.');
+    return data;
+}
+/** Formularios de contacto que el ciudadano confirmó ("Mis consultas"). */
+export const misContactos = () => listarContactos(`${BASE}/api/abogados/contactos/mios`);
+/** Contactos que recibió el abogado autenticado. */
+export const contactosRecibidos = () => listarContactos(`${BASE}/api/abogados/me/contactos`);
 export function mensajeWhatsApp(abogado, datos) {
     const destino = `${abogado.nombre} ${abogado.apellido || ''}`.trim();
     return `Hola, ${destino}. Quisiera realizar una consulta.\n\nNombre: ${datos.nombre.trim()}\nTeléfono de contacto: ${datos.telefono.trim()}\nResumen: ${datos.resumen.trim()}`;

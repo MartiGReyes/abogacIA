@@ -19,24 +19,26 @@ public class ContactoWhatsAppController {
         @Override public String toString(){return "Formulario[datos omitidos]";}
     }
     private final AbogadoRepository abogados;private final ProfesionalContactable profesionales;private final ObjectProvider<CuentaPruebaService> operativa;
-    public ContactoWhatsAppController(AbogadoRepository a,ProfesionalContactable p,ObjectProvider<CuentaPruebaService> o){abogados=a;profesionales=p;operativa=o;}
+    private final com.abogacia.microservicio_abogados.extension.ContactoRegistro registro;
+    public ContactoWhatsAppController(AbogadoRepository a,ProfesionalContactable p,ObjectProvider<CuentaPruebaService> o,com.abogacia.microservicio_abogados.extension.ContactoRegistro r){abogados=a;profesionales=p;operativa=o;registro=r;}
     public static String mensaje(String destinatario,String nombre,String telefono,String resumen){
         return "Hola, "+destinatario+". Quisiera realizar una consulta.\n\nNombre: "+nombre+"\nTeléfono de contacto: "+telefono+"\nResumen: "+resumen;
     }
     private static ResponseStatusException noDisponible(){return new ResponseStatusException(HttpStatus.CONFLICT,"Contacto no disponible");}
     private static String campo(String s,int max){if(s==null||s.trim().isEmpty()||s.trim().length()>max)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Completá nombre, teléfono y resumen dentro de los límites indicados.");return s.trim();}
-    @PostMapping("/api/abogados/contacto/whatsapp") @Transactional(readOnly=true)
+    @PostMapping("/api/abogados/contacto/whatsapp") @Transactional
     public ResponseEntity<?> preparar(@RequestBody Formulario f,HttpServletRequest request,@org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.oauth2.jwt.Jwt jwt){
         if(jwt==null || !"CIUDADANO".equals(jwt.getClaimAsString("rol")))throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         if(!f.consentimiento()||!AVISO.equals(f.avisoVersion()))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Revisá el mensaje y aceptá el consentimiento.");
         String nombre=campo(f.nombre(),100),telefono=campo(f.telefono(),35),resumen=campo(f.resumen(),800);
         if(nombre.contains("\n")||nombre.contains("\r")||telefono.contains("\n"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Revisá nombre y teléfono.");
         try{DatosOperativos.telefono(telefono);}catch(IllegalArgumentException e){throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Ingresá tu teléfono en formato internacional argentino.");}
-        String destino,numero,dni,matricula;
+        String destino,numero,dni,matricula;long idDestino;java.util.Set<String> especialidades;
         if(f.abogado()==null)throw noDisponible();
         if("PROFESIONAL".equals(f.abogado().tipo())){
             long id;try{id=Long.parseLong(f.abogado().id());}catch(RuntimeException e){throw noDisponible();}
             var a=abogados.findById(id).orElseThrow(ContactoWhatsAppController::noDisponible);
+            idDestino=id;especialidades=new java.util.LinkedHashSet<>(a.getEspecialidades());
             var servicio=operativa.getIfAvailable();
             if(CuentaPruebaService.marcada(a)){
                 if(servicio==null||!servicio.disponible(a))throw noDisponible();
@@ -51,6 +53,9 @@ public class ContactoWhatsAppController {
         if(!texto.equals(f.mensajeConfirmado()))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"El destinatario o el mensaje cambió. Revisá y confirmá nuevamente.");
         if((dni!=null&&texto.replaceAll("[^0-9]","").contains(dni))||(matricula!=null&&!matricula.isBlank()&&(nombre+" "+resumen).matches("(?s).*(?<![0-9])"+java.util.regex.Pattern.quote(matricula)+"(?![0-9]).*"))
             ||texto.toLowerCase(Locale.ROOT).matches("(?s).*\\b(dni|didit|matr[ií]cula)\\b.*"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Retirá DNI, matrícula y datos sensibles del mensaje.");
+        // Copia para "Mis consultas" del ciudadano y para el abogado destinatario (consentida en el formulario).
+        try{registro.guardar(Long.parseLong(jwt.getSubject()),idDestino,destino,especialidades,nombre,telefono,resumen);}
+        catch(RuntimeException e){org.slf4j.LoggerFactory.getLogger(ContactoWhatsAppController.class).warn("No se pudo guardar la copia del contacto");}
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(Map.of("url","https://wa.me/"+numero+"?text="+URLEncoder.encode(texto,StandardCharsets.UTF_8).replace("+","%20"),"aviso","Confirmá el envío desde WhatsApp. Abrir el enlace no confirma envío ni recepción."));
     }
 }

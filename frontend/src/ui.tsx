@@ -10,11 +10,13 @@ import heroBg from './imports/caratula-V1.png'
 export { logoImg, lexiImg, heroBg }
 
 export type Page = 'home' | 'login' | 'register-citizen' | 'register-lawyer' | 'lawyer-pending' | 'verify-citizen' | 'profile' | 'history' | 'admin'
+  | 'consultations' | 'dashboard' | 'cases' | 'statistics' | 'lawyer-profile'
 
 export const RUTAS: Record<Page, string> = {
   admin: '/admin',
   home: '/', login: '/iniciar-sesion', 'register-citizen': '/registro', 'register-lawyer': '/registro-abogado',
   'lawyer-pending': '/cuenta-profesional', 'verify-citizen': '/verificar-identidad-ciudadano', profile: '/mis-datos', history: '/historial',
+  consultations: '/mis-consultas', dashboard: '/panel', cases: '/panel/casos', statistics: '/panel/estadisticas', 'lawyer-profile': '/mis-datos',
 }
 
 /** Navega por nombre de página, como el diseño original, pero usando URLs reales (Didit vuelve a una URL). */
