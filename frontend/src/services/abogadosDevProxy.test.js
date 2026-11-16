@@ -36,8 +36,9 @@ test('development bundle requests recommendations on the frontend origin', async
 test('development Nginx preserves Lexi and proxies only the exact recommendations route', async () => {
     const usual = await read('../../nginx.conf');
     const dev = await read('../../nginx.abogados-dev.conf');
-    const route = /    # Only recommendations[^]*?    location = \/api\/abogados\/recomendaciones \{[^}]*\}\r?\n/;
-    assert.equal(dev.replace(route, ''), usual);
+    const lexi = /location = \/api\/lexi\/orientacion\s*\{[^}]*\}/;
+    assert.equal(dev.match(lexi)?.[0], usual.match(lexi)?.[0]);
+    assert.ok(!dev.includes('http://autenticacion:8081'), 'el entorno aislado no recibe el proxy general');
     assert.match(dev, /location = \/api\/abogados\/recomendaciones\s*\{\s*proxy_pass http:\/\/abogados-dev:8082;/);
     const dockerfile = await read('../../../docker/abogados-dev/frontend.Dockerfile');
     assert.match(dockerfile, /COPY nginx\.abogados-dev\.conf \/etc\/nginx\/conf\.d\/default\.conf/);

@@ -1,0 +1,14 @@
+# Overlay habitual: nunca consulta ni conecta el catálogo de entornos aislados.
+services:
+  gateway:
+    image: abogacia-gateway:lexi-final-20261115
+    build: ./docker/unificado
+    environment:
+      ABOGACIA_ISOLATED_ROUTING_ENABLED: 'false'
+    networks: [default]
+  frontend:
+    image: abogacia-frontend:mejoras-interfaz-20261115
+    volumes:
+      - ./docker/unificado/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports: !override ['127.0.0.1:5173:80']
+    depends_on: [gateway, autenticacion]

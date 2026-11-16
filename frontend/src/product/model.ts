@@ -93,6 +93,10 @@ export interface ContactoGuardado {
   telefono: string
   resumen: string
   creadoEn: string
+  estado?: 'PENDIENTE' | 'EN_CURSO' | 'FINALIZADA'
+  actualizadoEn?: string
+  mensaje?: string
+  areaJuridica?: string
 }
 
 export const AREAS = [

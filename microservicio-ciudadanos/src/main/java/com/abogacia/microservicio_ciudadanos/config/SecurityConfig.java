@@ -45,7 +45,8 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
                     .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
-                    .requestMatchers(HttpMethod.POST, "/api/ciudadanos", "/api/ciudadanos/confirmar").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/ciudadanos", "/api/ciudadanos/confirmar", "/api/ciudadanos/correo/reenviar").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/ciudadanos/recuperacion/solicitar", "/api/ciudadanos/recuperacion/confirmar").permitAll()
                     // Didit: autorizado por el token temporal X-Registro-Token, no por JWT (la cuenta aún está PENDIENTE).
                     .requestMatchers("/api/ciudadanos/verificacion/**").permitAll()
                     .requestMatchers("/api/ciudadanos/**").authenticated()
@@ -63,9 +64,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    CorsConfigurationSource corsConfigurationSource() {
+    CorsConfigurationSource corsConfigurationSource(@Value("${abogacia.cors.origins:http://localhost:5173,http://127.0.0.1:5173}") String origins) {
         CorsConfiguration cors = new CorsConfiguration();
-        cors.setAllowedOrigins(List.of("http://localhost:5173"));
+        cors.setAllowedOrigins(List.of(origins.split(",")));
         cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Registro-Token"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

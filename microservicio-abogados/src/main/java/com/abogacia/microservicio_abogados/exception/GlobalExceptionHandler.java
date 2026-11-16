@@ -7,6 +7,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+ @org.springframework.web.bind.annotation.ExceptionHandler(org.springframework.dao.IncorrectResultSizeDataAccessException.class) public org.springframework.http.ResponseEntity<java.util.Map<String,String>> ambiguo(){return org.springframework.http.ResponseEntity.status(409).body(java.util.Map.of("error","No se puede identificar la cuenta de forma inequívoca. Contactá con soporte."));}
+
  @ExceptionHandler(ResponseStatusException.class) ResponseEntity<Map<String,String>> estado(ResponseStatusException e){return ResponseEntity.status(e.getStatusCode()).body(Map.of("error",e.getReason()));}
  @ExceptionHandler(MethodArgumentNotValidException.class) ResponseEntity<Map<String,String>> validar(MethodArgumentNotValidException e){
   String campos=e.getBindingResult().getFieldErrors().stream().map(x->x.getField()).distinct().sorted().collect(java.util.stream.Collectors.joining(", "));

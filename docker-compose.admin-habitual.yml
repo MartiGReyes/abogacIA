@@ -1,0 +1,10 @@
+# Candidate only: does not start/recreate databases or application backends.
+# Combine with base + backends-seguros + lexi-final. Deploy only --no-deps frontend-admin.
+services:
+  frontend-admin:
+    image: abogacia-admin:independiente-20261115
+    build:
+      context: .
+      dockerfile: docker/admin-habitual/Dockerfile
+    ports: ['127.0.0.1:5174:80']
+    networks: [default]

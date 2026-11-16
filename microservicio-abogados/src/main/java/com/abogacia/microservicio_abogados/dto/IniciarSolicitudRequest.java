@@ -5,5 +5,6 @@ public record IniciarSolicitudRequest(
  @NotBlank @Pattern(regexp="[0-9]{7,8}") String dni,
  @NotBlank @Email @Size(max=254) String mail,
  @NotBlank @Size(max=30) String nroCelular) {
+ public IniciarSolicitudRequest {mail=com.abogacia.microservicio_abogados.correo.CorreoNormalizado.normalizar(mail);}
  @Override public String toString() { return "IniciarSolicitudRequest[datos omitidos]"; }
 }

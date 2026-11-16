@@ -13,3 +13,4 @@
 *.log
 *.dump
 .private-*/
+.codex-tmp/

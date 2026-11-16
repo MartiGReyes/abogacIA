@@ -4,6 +4,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY . .
+ENV VITE_AUTH_URL=/ VITE_ABOGADOS_URL=/ VITE_CIUDADANOS_URL=/ VITE_ADMIN_CIUDADANOS_URL=/ VITE_ADMIN_ABOGADOS_URL=/
 RUN npm run build
 
 FROM nginx:1.27-alpine

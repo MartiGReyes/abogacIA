@@ -22,9 +22,11 @@ public class LoginController {
     public enum TipoCuenta { CIUDADANO, ABOGADO, ADMIN }
     public record LoginRequest(@NotBlank @Email String mail, @NotBlank String contrasena,
                                @NotNull TipoCuenta tipoCuenta) {
+  public LoginRequest {mail=com.abogacia.microservicio_autenticacion.correo.CorreoNormalizado.normalizar(mail);}
+
         @Override public String toString() { return "LoginRequest[credenciales omitidas]"; }
     }
-    public record LoginResponse(String token, String rol, String idUsuario) {}
+    public record LoginResponse(String token, String rol, String idUsuario) { @Override public String toString(){return "LoginResponse[credenciales omitidas]";} }
     public record CiudadanoValidado(Long idCiudadano) {}
     public record AbogadoValidado(Long idAbogado) {}
 
@@ -55,7 +57,8 @@ public class LoginController {
         this.ttl = ttl;
         var factory = new JdkClientHttpRequestFactory(HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(3)).build());
-        factory.setReadTimeout(Duration.ofSeconds(5));
+        // La primera validación BCrypt tras arrancar Docker puede superar cinco segundos.
+        factory.setReadTimeout(Duration.ofSeconds(15));
         this.abogados = RestClient.builder().baseUrl(abogadosUrl).requestFactory(factory)
                 .defaultHeaders(h -> h.setBasicAuth(username, password)).build();
         this.ciudadanos = RestClient.builder().baseUrl(url).requestFactory(factory)
@@ -72,7 +75,8 @@ public class LoginController {
         Instant now = Instant.now();
         JwtClaimsSet claims = JwtClaimsSet.builder().issuer("abogacia-auth").subject(id)
                 .issuedAt(now).expiresAt(now.plusSeconds(ttl))
-                .claim("rol", request.tipoCuenta().name()).build();
+                .claim("rol", request.tipoCuenta().name())
+                .claim("cuenta", request.tipoCuenta().name()+":"+id).build();
         String token = encoder.encode(JwtEncoderParameters.from(
                 JwsHeader.with(MacAlgorithm.HS256).build(), claims)).getTokenValue();
         return new LoginResponse(token, request.tipoCuenta().name(), id);

@@ -145,7 +145,7 @@ class RegistroYConfirmacionGestorTest {
     void confirmacionCorrectaConfirmaCorreoPeroQuedaPendienteHastaDidit() {
         Ciudadano ciudadano = ciudadanoPendiente("123456");
         ConfirmarRegistroRequest request = solicitudConfirmacion("123456");
-        when(ciudadanoRepository.findByCodigoConfirmacionForUpdate(request.getCodigo()))
+        when(ciudadanoRepository.findByCodigoConfirmacionForUpdate(com.abogacia.microservicio_ciudadanos.correo.TokenCorreo.hash(request.getCodigo())))
                 .thenReturn(Optional.of(ciudadano));
 
         CiudadanoResponse response = confirmarGestor.confirmar(request);
@@ -162,7 +162,7 @@ class RegistroYConfirmacionGestorTest {
     void confirmarCorreoNoPuedeQuitarUnaSuspension() {
         Ciudadano ciudadano = ciudadanoPendiente("123456");
         ciudadano.setEstado(new Estado("SUSPENDIDO"));
-        when(ciudadanoRepository.findByCodigoConfirmacionForUpdate("123456"))
+        when(ciudadanoRepository.findByCodigoConfirmacionForUpdate(com.abogacia.microservicio_ciudadanos.correo.TokenCorreo.hash("123456")))
                 .thenReturn(Optional.of(ciudadano));
         assertThrows(org.springframework.web.server.ResponseStatusException.class,
                 () -> confirmarGestor.confirmar(solicitudConfirmacion("123456")));
@@ -207,7 +207,7 @@ class RegistroYConfirmacionGestorTest {
         ciudadano.setFechaNacimiento(LocalDate.now().minusYears(30));
         ciudadano.setMail("ana@example.com");
         ciudadano.setEstado(new Estado("PENDIENTE"));
-        ciudadano.setCodigoConfirmacion(codigo);
+        ciudadano.setCodigoConfirmacion(com.abogacia.microservicio_ciudadanos.correo.TokenCorreo.guardar(codigo));
         return ciudadano;
     }
 

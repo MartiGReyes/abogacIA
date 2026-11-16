@@ -9,6 +9,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class DataInitializer {
 
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="abogacia.bootstrap.states-enabled",havingValue="true")
+    @org.springframework.core.annotation.Order(-100)
     @Bean
     CommandLineRunner inicializarEstados(EstadoRepository estadoRepository) {
         return args -> {

@@ -1,3 +1,5 @@
+import ConfirmarCorreo from './pages/ConfirmarCorreo'
+import { Valoraciones } from "./product/Solicitudes"
 import { useEffect, type ReactNode } from "react"
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom"
 import { AuthProvider, useSesion } from "./AuthContext"
@@ -10,6 +12,7 @@ import { HomePage } from "./product/Home"
 import { Dashboard } from "./product/Dashboard"
 import { CitizenConsultations, ProductOverlays } from "./product/PublicExperience"
 import LoginPage from "./pages/Login"
+import RecuperarAcceso from "./pages/RecuperarAcceso"
 import RegisterCitizenPage from "./pages/RegisterCitizen"
 import VerifyCitizenPage from "./pages/VerifyCitizen"
 import RegisterLawyerPage from "./pages/RegisterLawyer"
@@ -17,8 +20,7 @@ import LawyerPendingPage from "./pages/LawyerPending"
 import LawyerProfilePage from "./pages/LawyerProfile"
 import ProfilePage from "./pages/Profile"
 import HistoryPage from "./pages/History"
-import { AdminUsuarios, AdminPadron } from "./pages/AdminGestion"
-import { AdminProtegido, AdminPanel, AdminAbogados, AdminIdentidad } from "./pages/Admin"
+import { AdminHandoff } from "./admin/AdminHandoff"
 
 type Rol = "CIUDADANO" | "ABOGADO" | "ADMIN"
 
@@ -74,12 +76,8 @@ function Shell() {
         <Route path="/panel/estadisticas" element={<Solo rol="ABOGADO"><Dashboard section="statistics" navigate={navigate} /></Solo>} />
         <Route path="/dashboard-abogado/*" element={<Navigate to="/panel" replace />} />
         <Route path="/iniciar-sesion" element={<LoginPage navigate={navigate} />} />
-        <Route path="/admin/iniciar-sesion" element={<LoginPage navigate={navigate} admin />} />
-        <Route path="/admin" element={<Legacy><AdminProtegido><AdminPanel /></AdminProtegido></Legacy>} />
-        <Route path="/admin/abogados" element={<Legacy><AdminProtegido><AdminAbogados /></AdminProtegido></Legacy>} />
-        <Route path="/admin/usuarios" element={<Legacy><AdminProtegido><AdminUsuarios /></AdminProtegido></Legacy>} />
-        <Route path="/admin/padron" element={<Legacy><AdminProtegido><AdminPadron /></AdminProtegido></Legacy>} />
-        <Route path="/admin/identidad" element={<Legacy><AdminProtegido><AdminIdentidad /></AdminProtegido></Legacy>} />
+        <Route path="/confirmar-correo" element={<ConfirmarCorreo />} />
+        <Route path="/recuperar-acceso" element={<RecuperarAcceso />} />
         <Route path="/registro" element={<RegisterCitizenPage navigate={navigate} />} />
         {/* Didit vuelve a estas dos URLs al terminar la verificación. */}
         <Route path="/verificar-identidad-ciudadano" element={<Legacy><VerifyCitizenPage navigate={navigate} /></Legacy>} />
@@ -91,7 +89,7 @@ function Shell() {
             sesion?.rol === "CIUDADANO" ? (
               <ProfilePage navigate={navigate} onUpdated={store.refreshUser} />
             ) : sesion?.rol === "ABOGADO" ? (
-              <Legacy><LawyerProfilePage navigate={navigate} onUpdated={store.refreshUser} /></Legacy>
+              <Legacy><LawyerProfilePage navigate={navigate} onUpdated={store.refreshUser} /><div className="product-page"><Valoraciones propias /></div></Legacy>
             ) : (
               <Navigate to="/iniciar-sesion" replace />
             )
@@ -111,9 +109,10 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <ProductProvider>
-          <Shell />
-        </ProductProvider>
+        <Routes>
+          <Route path="/admin/*" element={<AdminHandoff />} />
+          <Route path="*" element={<ProductProvider><Shell /></ProductProvider>} />
+        </Routes>
       </BrowserRouter>
     </AuthProvider>
   )

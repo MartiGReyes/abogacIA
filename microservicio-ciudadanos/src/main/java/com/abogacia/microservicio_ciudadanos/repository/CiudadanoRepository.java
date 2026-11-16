@@ -24,13 +24,18 @@ public interface CiudadanoRepository extends JpaRepository<Ciudadano, Long> {
     @org.springframework.data.jpa.repository.Query("select coalesce(e.nombreEstado, 'SIN_ESTADO') as estado, count(c) as cantidad from Ciudadano c left join c.estado e group by e.nombreEstado")
     java.util.List<ConteoEstado> contarPorEstadoAdmin();
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select c from Ciudadano c where lower(trim(c.mail))=lower(trim(:mail))")
+    Optional<Ciudadano> findByMailForUpdate(@org.springframework.data.repository.query.Param("mail") String mail);
     boolean existsByDni(String dni);
 
-    boolean existsByMail(String mail);
+    @org.springframework.data.jpa.repository.Query("select (count(c)>0) from Ciudadano c where lower(trim(c.mail))=lower(trim(:mail))")
+    boolean existsByMail(@org.springframework.data.repository.query.Param("mail") String mail);
 
     Optional<Ciudadano> findByDni(String dni);
 
-    Optional<Ciudadano> findByMail(String mail);
+    @org.springframework.data.jpa.repository.Query("select c from Ciudadano c where lower(trim(c.mail))=lower(trim(:mail))")
+    Optional<Ciudadano> findByMail(@org.springframework.data.repository.query.Param("mail") String mail);
     Optional<Ciudadano> findByCodigoConfirmacion(String codigoConfirmacion);
 
     Optional<Ciudadano> findByAccesoRegistroHash(String hash);
@@ -42,6 +47,6 @@ public interface CiudadanoRepository extends JpaRepository<Ciudadano, Long> {
     Optional<Ciudadano> findByDniForUpdate(@org.springframework.data.repository.query.Param("dni") String dni);
 
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
-    @org.springframework.data.jpa.repository.Query("select c from Ciudadano c where c.codigoConfirmacion = :codigo")
+    @org.springframework.data.jpa.repository.Query("select c from Ciudadano c where c.codigoConfirmacion like concat(:codigo, ':%')")
     Optional<Ciudadano> findByCodigoConfirmacionForUpdate(@org.springframework.data.repository.query.Param("codigo") String codigo);
 }

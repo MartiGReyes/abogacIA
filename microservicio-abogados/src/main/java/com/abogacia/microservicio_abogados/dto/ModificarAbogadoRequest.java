@@ -12,4 +12,6 @@ public record ModificarAbogadoRequest(
  @NotNull @Min(0) @Max(80) Integer aniosExperiencia,
  @NotNull @DecimalMin("0") @Digits(integer=10,fraction=2) BigDecimal honorarios,
  @NotBlank @Size(max=255) String ubicacion, @NotBlank @Size(max=255) String direccionProfesional,
- @NotBlank @Size(max=2000) String descripcionProfesional) {}
+ @NotBlank @Size(max=2000) String descripcionProfesional) {
+  public ModificarAbogadoRequest {mail=com.abogacia.microservicio_abogados.correo.CorreoNormalizado.normalizar(mail);}
+}

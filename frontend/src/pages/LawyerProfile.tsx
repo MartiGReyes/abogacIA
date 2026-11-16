@@ -1,3 +1,5 @@
+import { FotoPerfil, FotoPerfilEditor } from '../product/FotoPerfil'
+import { cerrarSesionDeCuenta } from '../services/authService.js'
 import { useNavigate } from 'react-router-dom'
 import { cerrarSesion } from '../services/authService'
 import { useEffect, useState } from 'react'
@@ -166,6 +168,7 @@ export default function LawyerProfilePage({ navigate, onUpdated }: { navigate: (
 
       })
 
+      if(actualizado.correoConfirmado===false){cerrarSesionDeCuenta('ABOGADO');window.location.assign('/confirmar-correo?cuenta=ABOGADO');return}
       setUser(actualizado); setForm(actualizado); setCelularWhatsApp(actualizado.nroCelular || ''); setEditing(false); setSaved(true); onUpdated()
 
       setTimeout(() => setSaved(false), 3000)
@@ -193,10 +196,11 @@ export default function LawyerProfilePage({ navigate, onUpdated }: { navigate: (
   return (
 
     <div className="max-w-4xl mx-auto px-5 sm:px-8 pt-28 pb-20 fade-up">
+      <FotoPerfilEditor initials={(user.nombre[0] ?? "") + (user.apellido[0] ?? "")} />
 
       <div className="flex flex-wrap items-center gap-5">
 
-        <span className="w-16 h-16 rounded-full bg-gold-500 text-[#0b1020] text-xl font-bold grid place-items-center" aria-hidden="true">{user.nombre[0]}{user.apellido[0]}</span>
+        <FotoPerfil propia className="avatar-initials" initials={user.nombre[0] + user.apellido[0]} />
 
         <div className="flex-1 min-w-0">
 

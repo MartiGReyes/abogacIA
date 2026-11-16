@@ -19,7 +19,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Historial de consultas con Lexi del ciudadano autenticado.
- * La tabla solo se crea en el entorno principal (ddl-auto=update); los entornos aislados no se modifican.
+ * Preparar la tabla requiere bootstrap.schema-enabled explícito y ddl-auto=update.
+ * Deshabilitar la preparación conserva los endpoints de historial.
  */
 @RestController
 @RequestMapping("/api/ciudadanos/me/consultas-lexi")
@@ -30,6 +31,8 @@ public class ConsultasLexiController implements ApplicationRunner {
     private final JdbcTemplate jdbc;
     private final CiudadanoRepository ciudadanos;
     private final String ddl;
+    @Value("${abogacia.bootstrap.schema-enabled:false}")
+    private boolean schemaEnabled;
     private volatile boolean instalada;
 
     public ConsultasLexiController(JdbcTemplate jdbc, CiudadanoRepository ciudadanos,
@@ -41,7 +44,7 @@ public class ConsultasLexiController implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (!"update".equalsIgnoreCase(ddl)) return;
+        if (!schemaEnabled || !"update".equalsIgnoreCase(ddl)) return;
         try {
             jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS consulta_lexi (

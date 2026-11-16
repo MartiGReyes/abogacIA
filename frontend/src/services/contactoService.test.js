@@ -16,10 +16,15 @@ test('vista previa incluye destinatario seleccionado y los tres campos, sin dato
 test('ambos caminos preparan por referencia, sin número libre de destino',async()=>{
  const previo=globalThis.fetch;
  globalThis.fetch=async(url,opciones)=>{assert.match(url,/\/api\/abogados\/contacto\/whatsapp$/);const b=JSON.parse(opciones.body);assert.deepEqual(b.abogado,a.referencia);assert.equal(b.numeroDestino,undefined);assert.equal(b.consentimiento,true);return Response.json({url:'https://wa.me/5493510000001?text=prueba',aviso:'Confirmá en WhatsApp.'});};
- try{assert.match((await prepararContacto(a,datos,mensajeWhatsApp(a,datos))).url,/wa.me/);}finally{globalThis.fetch=previo;}
+ try{assert.match((await prepararContacto(a,datos,mensajeWhatsApp(a,datos),true)).url,/wa.me/);}finally{globalThis.fetch=previo;}
 });
 test('editar mensaje invalida el consentimiento y no acepta enlaces externos arbitrarios',async()=>{
  const previo=globalThis.fetch;
- globalThis.fetch=async(_,o)=>{assert.equal(JSON.parse(o.body).consentimiento,false);return Response.json({url:'https://otro.example/robar',aviso:''});};
- try{await assert.rejects(prepararContacto(a,{...datos,resumen:'Editado'},mensajeWhatsApp(a,datos)),/Contacto no disponible/);}finally{globalThis.fetch=previo;}
+ globalThis.fetch=async(_,o)=>{assert.equal(JSON.parse(o.body).consentimiento,true);return Response.json({url:'https://otro.example/robar',aviso:''});};
+ try{await assert.rejects(prepararContacto(a,{...datos,resumen:'Editado'},mensajeWhatsApp(a,datos),true),/Contacto no disponible/);}finally{globalThis.fetch=previo;}
+});
+
+test('un texto coincidente nunca sustituye el consentimiento explícito',async()=>{
+ const previo=globalThis.fetch;let calls=0;globalThis.fetch=async()=>{calls++;throw Error('No debe enviar')};
+ try{await assert.rejects(prepararContacto(a,datos,mensajeWhatsApp(a,datos)),/consentimiento/);assert.equal(calls,0);}finally{globalThis.fetch=previo;}
 });

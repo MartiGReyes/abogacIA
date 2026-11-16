@@ -45,22 +45,25 @@ public interface AbogadoRepository extends JpaRepository<AbogadoRegistrado, Long
     @org.springframework.data.jpa.repository.Query("select distinct e from AbogadoRegistrado a join a.especialidades e")
     java.util.List<String> findEspecialidadesExistentes();
 
-    Optional<AbogadoRegistrado> findByMail(String mail);
+    @org.springframework.data.jpa.repository.Query("select a from AbogadoRegistrado a where lower(trim(a.mail))=lower(trim(:mail))")
+    Optional<AbogadoRegistrado> findByMail(@org.springframework.data.repository.query.Param("mail") String mail);
 
     Optional<AbogadoRegistrado> findByAccesoRegistroHash(String hash);
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @org.springframework.data.jpa.repository.Query("select a from AbogadoRegistrado a where a.idAbogado = :id")
     Optional<AbogadoRegistrado> findByIdForUpdate(@org.springframework.data.repository.query.Param("id") Long id);
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
-    @org.springframework.data.jpa.repository.Query("select a from AbogadoRegistrado a where a.mail = :mail")
+    @org.springframework.data.jpa.repository.Query("select a from AbogadoRegistrado a where lower(trim(a.mail))=lower(trim(:mail))")
     Optional<AbogadoRegistrado> findByMailForUpdate(@org.springframework.data.repository.query.Param("mail") String mail);
 
     Optional<AbogadoRegistrado> findByDni(String dni);
 
     Optional<AbogadoRegistrado> findByNroMatricula(String nroMatricula);
 
-    boolean existsByMail(String mail);
-    boolean existsByMailIgnoreCaseAndIdAbogadoNot(String mail, Long id);
+    @org.springframework.data.jpa.repository.Query("select (count(a)>0) from AbogadoRegistrado a where lower(trim(a.mail))=lower(trim(:mail))")
+    boolean existsByMail(@org.springframework.data.repository.query.Param("mail") String mail);
+    @org.springframework.data.jpa.repository.Query("select (count(a)>0) from AbogadoRegistrado a where lower(trim(a.mail))=lower(trim(:mail)) and a.idAbogado<>:id")
+    boolean existsByMailIgnoreCaseAndIdAbogadoNot(@org.springframework.data.repository.query.Param("mail") String mail, @org.springframework.data.repository.query.Param("id") Long id);
 
     boolean existsByDni(String dni);
 }

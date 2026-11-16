@@ -26,7 +26,7 @@ public class OrientacionCuentaController {
         try{
             var result=client.post().uri(URI.create(lexi)).contentType(MediaType.APPLICATION_JSON).body(Map.of("chatInput",consulta)).retrieve().body(Map.class);
             if(result==null||!(result.get("orientacion") instanceof String texto)||texto.isBlank()||texto.length()>20000)throw new IllegalStateException();
-            return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(Map.of("orientacion",texto));
+            return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(LexiRespuesta.normalizar(result));
         }catch(Exception ex){throw OperativaService.error(HttpStatus.SERVICE_UNAVAILABLE,"Lexi no está disponible. Podés reintentar.");}
     }
 }

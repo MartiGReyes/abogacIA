@@ -10,10 +10,11 @@ import org.springframework.stereotype.Component;
 
 /**
  * Tablas del frontend integrado (contactos guardados, casos profesionales y autorización de WhatsApp).
- * Solo se crean en el entorno principal (ddl-auto=update). Los entornos aislados usan "validate"
- * y sus propias migraciones explícitas, así que acá no se tocan.
+ * Requiere bootstrap.schema-enabled explícito en desarrollo controlado y ddl-auto=update.
+ * El arranque seguro no registra este runner; los esquemas deben existir previamente.
  */
 @Component
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="abogacia.bootstrap.schema-enabled",havingValue="true")
 public class EsquemaExtendido implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(EsquemaExtendido.class);
     private static final String[] SENTENCIAS = {
@@ -68,5 +69,12 @@ public class EsquemaExtendido implements ApplicationRunner {
             try { jdbc.execute(sql); }
             catch (RuntimeException e) { log.warn("No se pudo preparar el esquema extendido: {}", e.getMessage()); }
         }
+        // Mismo SQL versionado que se aplica explícitamente al entorno aislado.
+        new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
+            new org.springframework.core.io.ClassPathResource("db/solicitudes.sql"))
+            .execute(java.util.Objects.requireNonNull(jdbc.getDataSource()));
+        new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
+            new org.springframework.core.io.ClassPathResource("db/indicadores.sql"))
+            .execute(java.util.Objects.requireNonNull(jdbc.getDataSource()));
     }
 }

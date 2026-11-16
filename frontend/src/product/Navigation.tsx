@@ -1,9 +1,10 @@
+import { FotoPerfil } from './FotoPerfil'
 import { t, uiText } from "../i18n/core"
 import { useEffect, useRef, useState } from "react"
 import { useProduct } from "./Store"
 import { Button, Heading, Icon, Modal } from "./UI"
 import type { Page, SessionUser } from "./model"
-import logoImg from "../imports/logoabogacIA.png"
+import logoImg from "../imports/logonuevoabogacia.png"
 import { LanguageSelector } from "./LanguageSelector"
 
 type Link = { label: string; page?: Page; action: () => void }
@@ -120,10 +121,7 @@ export function Navigation({
             {user ? (
               <div ref={menuRef} style={{ position: "relative" }}>
                 <Button variant="ghost" className="account-button" aria-expanded={account} aria-haspopup="menu" onClick={() => setAccount((v) => !v)}>
-                  <span className="nav-avatar">
-                    {user.nombre[0]}
-                    {user.apellido[0] ?? ""}
-                  </span>
+                  <FotoPerfil propia={user.role === "lawyer"} className="nav-avatar" initials={(user.nombre[0] ?? "") + (user.apellido[0] ?? "")} />
                   <span className="account-name">{user.nombre.split(" ")[0]}</span>
                   <Icon name="down" />
                 </Button>

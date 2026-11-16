@@ -9,6 +9,7 @@
     "test": "node --test src/services/*.test.js",
     "dev": "vite",
     "build": "vite build",
+    "build:admin": "vite build --mode admin",
     "lint": "oxlint",
     "preview": "vite preview"
   },

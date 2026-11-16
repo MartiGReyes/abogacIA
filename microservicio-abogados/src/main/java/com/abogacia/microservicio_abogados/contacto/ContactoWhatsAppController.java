@@ -15,7 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class ContactoWhatsAppController {
     public static final String AVISO="contacto-whatsapp-v1";
     public record Referencia(String tipo,String id) {}
-    public record Formulario(Referencia abogado,String nombre,String telefono,String resumen,String mensajeConfirmado,boolean consentimiento,String avisoVersion){
+    public record Formulario(Referencia abogado,String nombre,String telefono,String resumen,String mensajeConfirmado,boolean consentimiento,String avisoVersion,String areaJuridica){
+        public Formulario(Referencia a,String n,String t,String r,String m,boolean c,String v){this(a,n,t,r,m,c,v,null);}
         @Override public String toString(){return "Formulario[datos omitidos]";}
     }
     private final AbogadoRepository abogados;private final ProfesionalContactable profesionales;private final ObjectProvider<CuentaPruebaService> operativa;
@@ -49,13 +50,17 @@ public class ContactoWhatsAppController {
                 destino=a.getNombre()+" "+a.getApellido();numero=DatosOperativos.telefono(a.getNroCelular());dni=a.getDni();matricula=a.getNroMatricula();
             }
         }else throw noDisponible();
-        String texto=mensaje(destino,nombre,telefono,resumen);
-        if(!texto.equals(f.mensajeConfirmado()))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"El destinatario o el mensaje cambió. Revisá y confirmá nuevamente.");
+        String texto=campo(f.mensajeConfirmado(),2000);
+        if(texto.indexOf('\u0000')>=0)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"El mensaje contiene caracteres no válidos.");
         if((dni!=null&&texto.replaceAll("[^0-9]","").contains(dni))||(matricula!=null&&!matricula.isBlank()&&(nombre+" "+resumen).matches("(?s).*(?<![0-9])"+java.util.regex.Pattern.quote(matricula)+"(?![0-9]).*"))
             ||texto.toLowerCase(Locale.ROOT).matches("(?s).*\\b(dni|didit|matr[ií]cula)\\b.*"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Retirá DNI, matrícula y datos sensibles del mensaje.");
         // Copia para "Mis consultas" del ciudadano y para el abogado destinatario (consentida en el formulario).
-        try{registro.guardar(Long.parseLong(jwt.getSubject()),idDestino,destino,especialidades,nombre,telefono,resumen);}
-        catch(RuntimeException e){org.slf4j.LoggerFactory.getLogger(ContactoWhatsAppController.class).warn("No se pudo guardar la copia del contacto");}
-        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(Map.of("url","https://wa.me/"+numero+"?text="+URLEncoder.encode(texto,StandardCharsets.UTF_8).replace("+","%20"),"aviso","Confirmá el envío desde WhatsApp. Abrir el enlace no confirma envío ni recepción."));
+        long idSolicitud=registro.guardar(Long.parseLong(jwt.getSubject()),idDestino,destino,especialidades,nombre,telefono,resumen,texto);
+        String area=f.areaJuridica()==null?"":f.areaJuridica().trim();
+        if(area.isEmpty()&&especialidades.size()==1)area=especialidades.iterator().next();
+        if(especialidades.isEmpty()&&(area.isEmpty()||area.equals("Consulta general")))area="Consulta general";
+        else if(!especialidades.contains(area))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Seleccioná un área jurídica entre las especialidades del abogado.");
+        registro.clasificar(idSolicitud,area);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(Map.of("idSolicitud",idSolicitud,"estado","PENDIENTE","url","https://wa.me/"+numero+"?text="+URLEncoder.encode(texto,StandardCharsets.UTF_8).replace("+","%20"),"aviso","Solicitud registrada como Pendiente. Confirmá el envío desde WhatsApp; abrir el enlace no confirma envío ni recepción."));
     }
 }

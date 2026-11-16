@@ -25,10 +25,11 @@ export function mensajeWhatsApp(abogado, datos) {
     const destino = `${abogado.nombre} ${abogado.apellido || ''}`.trim();
     return `Hola, ${destino}. Quisiera realizar una consulta.\n\nNombre: ${datos.nombre.trim()}\nTeléfono de contacto: ${datos.telefono.trim()}\nResumen: ${datos.resumen.trim()}`;
 }
-export async function prepararContacto(abogado, datos, mensajeConfirmado) {
+export async function prepararContacto(abogado, datos, mensajeConfirmado, consentimientoExplicito = false) {
+    if (consentimientoExplicito !== true) throw new Error('Revisá el mensaje y aceptá el consentimiento.');
     const r = await fetchAutenticado(`${BASE}/api/abogados/contacto/whatsapp`, {
         method: 'POST', credentials: 'same-origin', signal: AbortSignal.timeout(15000), headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ abogado: abogado.referencia, ...datos, mensajeConfirmado, consentimiento: mensajeConfirmado === mensajeWhatsApp(abogado, datos), avisoVersion: AVISO_CONTACTO }),
+        body: JSON.stringify({ abogado: abogado.referencia, ...datos, mensajeConfirmado, consentimiento: true, avisoVersion: AVISO_CONTACTO }),
     });
     const body = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(body.error || 'Contacto no disponible');

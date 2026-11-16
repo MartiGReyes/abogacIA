@@ -76,11 +76,12 @@ public class RegistrarCiudadanoGestor {
                 passwordEncoder.encode(request.getContrasena())
         );
 
-        ciudadano.setCodigoConfirmacion(codigoConfirmacion);
+        ciudadano.setCodigoConfirmacion(com.abogacia.microservicio_ciudadanos.correo.TokenCorreo.guardar(codigoConfirmacion));
         ciudadano.setEstado(estadoPendiente);
 
         Ciudadano ciudadanoGuardado =
                 ciudadanoRepository.save(ciudadano);
+        ciudadanoRepository.flush();
 
         interfazCorreo.enviarMailConfirmacion(
                 ciudadanoGuardado.getMail(),
@@ -106,7 +107,7 @@ public class RegistrarCiudadanoGestor {
 
     private String generarCodigoConfirmacion() {
 
-        int codigo = 100000 + new Random().nextInt(900000);
+        String codigo = com.abogacia.microservicio_ciudadanos.correo.TokenCorreo.nuevo();
 
         return String.valueOf(codigo);
     }

@@ -1,0 +1,36 @@
+import {test,expect} from '@playwright/test'
+import fs from 'node:fs'
+import {createHash} from 'node:crypto'
+const hash=(b:Buffer)=>createHash('sha256').update(b).digest('hex')
+const original=fs.readFileSync('src/imports/logonuevoabogacia.png')
+test('logo original sin deformación, nombre, favicon y navegación',async({page,request},info)=>{
+ const published=process.env.LOGO_PUBLISHED==='true'
+ if(!published)await page.route('**/api/**',r=>r.fulfill({json:[]}))
+ await page.goto('/')
+ const brand=page.locator('.product-nav .brand'),logo=brand.locator('img')
+ await expect(logo).toHaveAttribute('src',/logonuevoabogacia-.*\.png$/)
+ await expect(brand).toContainText('abogacIA')
+ await expect(logo).toBeVisible()
+ await expect.poll(()=>logo.evaluate((img:HTMLImageElement)=>img.naturalWidth)).toBe(1312)
+ const b=await logo.boundingBox();expect(b).not.toBeNull();expect(Math.abs(b!.width/b!.height-1312/1199)).toBeLessThan(0.01)
+ expect(b!.height).toBeLessThan(72);expect(b!.width).toBeGreaterThan(48)
+ const src=(await logo.getAttribute('src'))!,icon=page.locator('link[rel="icon"]')
+ await expect(icon).toHaveAttribute('type','image/png');await expect(icon).toHaveAttribute('href',src)
+ expect(hash(await(await request.get(src)).body())).toBe(hash(original))
+ expect(hash(await(await request.get((await icon.getAttribute('href'))!)).body())).toBe(hash(original))
+ await expect(page.locator('link[href*="favicon.svg"]')).toHaveCount(0)
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true)
+ await page.locator('.product-nav').screenshot({path:`../integracion/logo-20261115/header-${published?'publicado':'preview'}-${info.project.name}.png`})
+ await page.getByRole('button',{name:'Consultar a Lexi',exact:true}).first().click()
+ await expect(page.getByLabel('Tu consulta para Lexi')).toBeVisible()
+ await page.getByRole('dialog').last().getByRole('button',{name:'Cerrar ventana'}).click()
+ await page.goto('/iniciar-sesion')
+ await expect(page.locator('img[alt="AbogacIA"]')).toHaveAttribute('src',src)
+ await expect(page.getByRole('heading',{name:'Iniciá sesión',exact:true})).toBeVisible()
+ const preview=await page.context().newPage()
+ const imageUrl=new URL(src,page.url()).href
+ await preview.setContent(`<div id="favicon-preview" style="display:flex;align-items:center;gap:16px;width:max-content;padding:16px;background:#f7f2e7"><img src="${imageUrl}" width="32" height="32" style="object-fit:contain"><img src="${imageUrl}" width="48" height="48" style="object-fit:contain"></div>`)
+ await expect.poll(()=>preview.locator('img').first().evaluate((img:HTMLImageElement)=>img.naturalWidth)).toBe(1312)
+ await preview.locator('#favicon-preview').screenshot({path:`../integracion/logo-20261115/favicon-${published?'publicado':'preview'}-${info.project.name}.png`})
+ await preview.close()
+})

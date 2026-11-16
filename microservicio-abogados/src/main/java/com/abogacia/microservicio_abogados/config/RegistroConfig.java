@@ -8,6 +8,8 @@ import com.abogacia.microservicio_abogados.entity.Estado;
 @Configuration
 public class RegistroConfig {
  @Bean PasswordEncoder passwords() { return new BCryptPasswordEncoder(); }
+ @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="abogacia.bootstrap.states-enabled",havingValue="true")
+ @org.springframework.core.annotation.Order(-100)
  @Bean ApplicationRunner estados(EstadoRepository repository) {
   return args -> { for (String nombre : new String[]{"PENDIENTE", "REGISTRADO", "BAJA"}) {
    if (repository.findByNombreEstado(nombre).isEmpty()) { Estado estado=new Estado(); estado.setNombreEstado(nombre); repository.save(estado); }

@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { Link, Navigate, useLocation } from 'react-router-dom'
+import { Link, NavLink, Navigate, useLocation } from 'react-router-dom'
+import { Heading, Icon } from '../product/UI'
 import { useSesion } from '../AuthContext'
 import { adminService, puedeAdministrar } from '../services/adminService.js'
 import { AccionCuenta } from './AdminGestion'
@@ -17,15 +18,15 @@ export function AdminProtegido({ children, soloLectura = false }: { children: Re
   const sesion = useSesion()
   if (!sesion) return <Navigate to="/admin/iniciar-sesion" replace />
   if (!puedeAdministrar(sesion)) return <div className="pt-24 px-6" role="alert">Acceso exclusivo para administradores.</div>
-  return <div className="max-w-7xl mx-auto pt-24 pb-12 px-5 sm:px-8">
-    <h1 className="text-2xl font-semibold">Administración</h1>
-    <nav aria-label="Administración" className="flex flex-wrap gap-4 my-5">
-      <Link className="link" to="/admin">Panel de control</Link>
-      <Link className="link" to="/admin/abogados">Abogados registrados</Link>
-      {!soloLectura && <><Link className="link" to="/admin/usuarios">Gestionar usuarios</Link><Link className="link" to="/admin/padron">Actualizar padrón</Link></>}
-      <Link className="link" to="/admin/identidad">Verificación de identidad</Link>
+  return <div className="admin-workspace">
+    <header className="admin-heading"><div><p className="eyebrow">abogacIA · Gestión de la plataforma</p><Heading level={1}>Administración</Heading><p className="ui-muted">Consultá las cuentas y sus verificaciones, y gestioná las herramientas disponibles para tu rol.</p></div><span className="admin-emblem" aria-hidden="true"><Icon name="shield" /></span></header>
+    <nav aria-label="Administración" className="admin-navigation">
+      <NavLink end to="/admin">Panel de control</NavLink>
+      <NavLink to="/admin/abogados">Abogados registrados</NavLink>
+      {!soloLectura && <><NavLink to="/admin/usuarios">Gestionar usuarios</NavLink><NavLink to="/admin/padron">Actualizar padrón</NavLink></>}
+      <NavLink to="/admin/identidad">Verificación de identidad</NavLink>
     </nav>
-    {children}
+    <section className="admin-content">{children}</section>
   </div>
 }
 

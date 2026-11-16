@@ -8,6 +8,7 @@
 !**/.env.example
 **/node_modules
 **/dist
+**/dist-admin
 **/target
 **/*.sql
 **/*.xlsx

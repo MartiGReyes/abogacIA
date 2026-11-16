@@ -14,7 +14,7 @@ class LexiOperativaTest {
     @Test void reenviaSoloConsultaAlContratoExistenteSinDatosDelRegistro() throws Exception {
         var recibido=new AtomicReference<String>();
         var server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
-        server.createContext("/orientacion",x->{recibido.set(new String(x.getRequestBody().readAllBytes(),StandardCharsets.UTF_8));byte[] bytes="{\"orientacion\":\"Respuesta sintética del servidor de prueba\"}".getBytes(StandardCharsets.UTF_8);x.getResponseHeaders().add("Content-Type","application/json");x.sendResponseHeaders(200,bytes.length);x.getResponseBody().write(bytes);x.close();});
+        server.createContext("/orientacion",x->{recibido.set(new String(x.getRequestBody().readAllBytes(),StandardCharsets.UTF_8));byte[] bytes="{\"orientacion\":\"Respuesta sintética del servidor de prueba\",\"estado\":\"RESPONDIDA\",\"mostrarAbogados\":true}".getBytes(StandardCharsets.UTF_8);x.getResponseHeaders().add("Content-Type","application/json");x.sendResponseHeaders(200,bytes.length);x.getResponseBody().write(bytes);x.close();});
         server.start();
         try {
             var service=mock(OperativaService.class);

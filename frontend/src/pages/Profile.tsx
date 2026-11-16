@@ -1,3 +1,4 @@
+import { cerrarSesionDeCuenta } from '../services/authService.js'
 import { useEffect, useState } from "react"
 import { t } from "../i18n/core"
 import { darDeBajaCiudadano, modificarCiudadano, obtenerMisDatos } from "../services/ciudadanoService"
@@ -7,6 +8,7 @@ import { Modal } from "../product/UI"
 import type { Page } from "../ui"
 
 interface Ciudadano {
+  correoConfirmado: boolean
   nombre: string
   apellido: string
   dni: string
@@ -62,6 +64,7 @@ export default function ProfilePage({ navigate, onUpdated }: { navigate: (p: Pag
         mail: form.mail.trim(),
         nroCelular: form.nroCelular?.trim() ?? "",
       })
+      if(actualizado.correoConfirmado===false){cerrarSesionDeCuenta('CIUDADANO');window.location.assign('/confirmar-correo?cuenta=CIUDADANO');return}
       setUser(actualizado)
       setForm(actualizado)
       setEditing(false)

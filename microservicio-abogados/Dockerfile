@@ -8,7 +8,7 @@ RUN mvn -q -B -DskipTests package
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-RUN useradd --system --uid 10001 app
+RUN useradd --system --uid 10001 app && mkdir -p /datos/fotos-perfil && chown app /datos/fotos-perfil
 COPY --from=build /app/target/*.jar app.jar
 USER app
 EXPOSE 8082

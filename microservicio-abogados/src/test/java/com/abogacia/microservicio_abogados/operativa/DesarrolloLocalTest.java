@@ -31,7 +31,7 @@ class DesarrolloLocalTest {
     }
     @Test void conservaContratoDeLexiSinEnviarDatosDelPerfilNiRequerirSesion() throws Exception {
         var recibido=new AtomicReference<String>();var server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
-        server.createContext("/orientacion",x->{recibido.set(new String(x.getRequestBody().readAllBytes(),StandardCharsets.UTF_8));byte[] b="{\"orientacion\":\"Respuesta sintética\"}".getBytes(StandardCharsets.UTF_8);x.getResponseHeaders().add("Content-Type","application/json");x.sendResponseHeaders(200,b.length);x.getResponseBody().write(b);x.close();});server.start();
+        server.createContext("/orientacion",x->{recibido.set(new String(x.getRequestBody().readAllBytes(),StandardCharsets.UTF_8));byte[] b="{\"orientacion\":\"Respuesta sintética\",\"estado\":\"RESPONDIDA\",\"mostrarAbogados\":true}".getBytes(StandardCharsets.UTF_8);x.getResponseHeaders().add("Content-Type","application/json");x.sendResponseHeaders(200,b.length);x.getResponseBody().write(b);x.close();});server.start();
         try {
             var s=mock(PerfilLocalService.class);var c=new PerfilLocalController(s,"http://127.0.0.1:"+server.getAddress().getPort()+"/orientacion");
             var r=new MockHttpServletRequest();r.addHeader("Host","localhost:5182");r.addHeader("Origin","http://localhost:5182");

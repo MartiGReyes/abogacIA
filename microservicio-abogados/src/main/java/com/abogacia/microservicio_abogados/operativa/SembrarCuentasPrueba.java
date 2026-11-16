@@ -5,14 +5,14 @@ import java.util.UUID;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
-@ConditionalOnProperty(name="abogados.cuentas-prueba.enabled",havingValue="true")
+@org.springframework.core.annotation.Order(100)
+@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("${abogados.cuentas-prueba.enabled:false} && ${abogacia.bootstrap.test-accounts-enabled:false}")
 public class SembrarCuentasPrueba implements ApplicationRunner {
     private final JdbcTemplate jdbc;private final PasswordEncoder encoder;private final String archivo;
     public SembrarCuentasPrueba(JdbcTemplate j,PasswordEncoder p,@Value("${CUENTAS_TEST_PASSWORD_FILE}") String f){jdbc=j;encoder=p;archivo=f;}

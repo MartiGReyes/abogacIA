@@ -17,16 +17,16 @@ test('el borrador separa hechos y orientación con extractos literales, sin inve
     assert.match(largo.resumen, /…/);
 });
 
-test('cada recomendación conserva su propia consulta y orientación al continuar el chat', async () => {
-    const chat = crearConversacion(async consulta => `Orientación sobre: ${consulta}`, async () => [abogado]);
+test('una consulta nueva retira la recomendación anterior y conserva su propio contexto', async () => {
+    const chat = crearConversacion(async consulta => ({ orientacion: `Orientación sobre: ${consulta}`, estado: 'RESPONDIDA', mostrarAbogados: true }), async () => [abogado]);
     await chat.send('Me despidieron.');
     const id = chat.getSnapshot().msgs.at(-1).id;
     await chat.decidir(id, true);
     await chat.send('Otra consulta diferente.');
-    const original = chat.getSnapshot().recomendaciones[id];
-    assert.equal(original.consulta, 'Me despidieron.');
-    assert.equal(original.orientacion, 'Orientación sobre: Me despidieron.');
-    assert.equal(original.estado, 'lista');
+    assert.equal(chat.getSnapshot().recomendaciones[id], undefined);
+    const current = chat.getSnapshot().recomendaciones[chat.getSnapshot().msgs.at(-1).id];
+    assert.equal(current.consulta, 'Otra consulta diferente.');
+    assert.equal(current.orientacion, 'Orientación sobre: Otra consulta diferente.');
 });
 
 test('la vista previa refleja las ediciones y omite el número de destino incluso si existe', () => {

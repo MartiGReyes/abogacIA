@@ -39,9 +39,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    CorsConfigurationSource corsConfigurationSource() {
+    CorsConfigurationSource corsConfigurationSource(@Value("${abogacia.cors.origins:http://localhost:5173,http://127.0.0.1:5173}") String origins) {
         CorsConfiguration cors = new CorsConfiguration();
-        cors.setAllowedOrigins(List.of("http://localhost:5173"));
+        cors.setAllowedOrigins(List.of(origins.split(",")));
         cors.setAllowedMethods(List.of("POST", "OPTIONS"));
         cors.setAllowedHeaders(List.of("Content-Type"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

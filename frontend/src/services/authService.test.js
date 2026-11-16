@@ -1,6 +1,6 @@
 import { beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
-import { iniciarSesion, obtenerSesion, cerrarSesion, fetchAutenticado } from "./authService.js";
+import { iniciarSesion, obtenerSesion, cerrarSesion, fetchAutenticado, usarSesionDeCuenta, sesionDeCuenta } from "./authService.js";
 
 let stored;
 beforeEach(() => {
@@ -55,4 +55,30 @@ test("login fallido no persiste sesión", async () => {
     globalThis.fetch = async () => Response.json({ error: "Credenciales incorrectas." }, { status: 401 });
     await assert.rejects(iniciarSesion("ana@example.com", "incorrecta", "CIUDADANO"), /Credenciales incorrectas/);
     assert.equal(obtenerSesion(), null);
+});
+
+test('mismo correo permite sesiones distintas y un 401 tardío no cierra la otra cuenta',async()=>{
+    const crear=rol=>({token:`h.${Buffer.from(JSON.stringify({rol,sub:'42',cuenta:rol+':42',exp:Math.floor(Date.now()/1000)+1800})).toString('base64url')}.s`,rol,idUsuario:'42'});
+    globalThis.fetch=async()=>Response.json(crear('CIUDADANO'));
+    await iniciarSesion('dual@example.invalid','clave-ciudadana','CIUDADANO');
+    let completar;
+    globalThis.fetch=()=>new Promise(resolve=>{completar=resolve});
+    const pendiente=fetchAutenticado('/anterior').catch(e=>e);
+    globalThis.fetch=async()=>Response.json(crear('ABOGADO'));
+    await iniciarSesion('dual@example.invalid','clave-profesional','ABOGADO');
+    completar(new Response(null,{status:401}));await pendiente;
+    assert.equal(obtenerSesion().rol,'ABOGADO');
+    assert.equal(sesionDeCuenta('CIUDADANO'),null);
+    cerrarSesion();assert.equal(obtenerSesion(),null);
+    globalThis.fetch=async()=>Response.json(crear('CIUDADANO'));
+    await iniciarSesion('dual@example.invalid','clave-ciudadana','CIUDADANO');
+    globalThis.fetch=async()=>Response.json(crear('ABOGADO'));
+    await iniciarSesion('dual@example.invalid','clave-profesional','ABOGADO');
+    assert.equal(usarSesionDeCuenta('CIUDADANO'),true);assert.equal(obtenerSesion().rol,'CIUDADANO');
+    cerrarSesion();assert.equal(sesionDeCuenta('ABOGADO').rol,'ABOGADO');
+});
+test('rechaza un JWT emitido para otro rol aunque el correo sea el mismo',async()=>{
+    globalThis.fetch=async()=>Response.json({...responseLogin(),rol:'ABOGADO'});
+    await assert.rejects(iniciarSesion('dual@example.invalid','clave','CIUDADANO'),/cuenta distinta/);
+    assert.equal(obtenerSesion(),null);
 });

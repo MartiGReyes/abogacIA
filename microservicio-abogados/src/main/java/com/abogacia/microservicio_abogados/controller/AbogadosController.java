@@ -11,6 +11,8 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/abogados")
 public class AbogadosController {
  public record ConfirmarRequest(@NotBlank @Email String mail,@NotBlank @Size(max=128) String codigo) {
+  public ConfirmarRequest {mail=com.abogacia.microservicio_abogados.correo.CorreoNormalizado.normalizar(mail);}
+
   @Override public String toString(){return "ConfirmarRequest[datos omitidos]";}
  }
  private final RegistrarAbogadoGestor registro;

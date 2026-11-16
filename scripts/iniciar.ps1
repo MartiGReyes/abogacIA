@@ -1,82 +1,36 @@
-﻿# Inicia AbogacIA completo con Docker. Se usa haciendo doble clic en iniciar.bat.
-# Solo requiere Docker Desktop instalado. La primera vez crea la configuración (.env) y pide la API Key de Didit.
-
-$ErrorActionPreference = 'Continue'
-$raiz = Split-Path $PSScriptRoot -Parent
-Set-Location $raiz
-$Host.UI.RawUI.WindowTitle = 'AbogacIA'
-$utf8 = New-Object System.Text.UTF8Encoding($false)
-
-function Paso($texto) { Write-Host "`n>> $texto" -ForegroundColor Cyan }
-function Salir($texto) {
-    Write-Host "`n$texto" -ForegroundColor Red
-    Read-Host "`nPresioná Enter para cerrar"
-    exit 1
+# Inicio habitual: solo contenedores existentes. No construye, migra ni carga datos.
+$ErrorActionPreference = 'Stop'
+Set-Location (Split-Path $PSScriptRoot -Parent)
+$names = @('abogacia-postgres-1','abogacia-ciudadanos-1','abogacia-abogados-1','abogacia-autenticacion-1','abogacia-n8n-1','abogacia-gateway-1','abogacia-frontend-1')
+# Validate every dependency BEFORE starting anything; inspect output never prints secrets.
+foreach ($name in $names) {
+    docker --context desktop-linux inspect --format '{{.Name}}' $name | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Falta $name. Solicitá una instalación controlada; no se crearán servicios automáticamente." }
 }
-function DockerListo { cmd /c "docker info >nul 2>&1"; return $LASTEXITCODE -eq 0 }
-
-# 1. Docker instalado
-Paso 'Revisando Docker...'
-if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-    $bin = "$env:ProgramFiles\Docker\Docker\resources\bin"
-    if (Test-Path "$bin\docker.exe") { $env:Path += ";$bin" }
-    else {
-        Start-Process 'https://www.docker.com/products/docker-desktop/'
-        Salir "Docker Desktop no está instalado.`nSe abrió la página de descarga: instalalo, reiniciá la computadora y volvé a abrir iniciar.bat."
+foreach ($name in @('abogacia-ciudadanos-1','abogacia-abogados-1','abogacia-autenticacion-1')) {
+    $c = (docker --context desktop-linux inspect $name | ConvertFrom-Json)[0]
+    $required = @('ABOGACIA_BOOTSTRAP_SAFE_START=true','ABOGACIA_BOOTSTRAP_DEVELOPMENT_ENABLED=false','ABOGACIA_BOOTSTRAP_STATES_ENABLED=false','ABOGACIA_BOOTSTRAP_TEST_ACCOUNTS_ENABLED=false','ABOGACIA_BOOTSTRAP_SCHEMA_ENABLED=false','ABOGACIA_BOOTSTRAP_PADRON_ENABLED=false','SPRING_JPA_HIBERNATE_DDL_AUTO=validate','SPRING_SQL_INIT_MODE=never','SPRING_FLYWAY_ENABLED=false','SPRING_LIQUIBASE_ENABLED=false','PADRON_IMPORTAR=false','DIDIT_RECONCILIATION_ENABLED=false')
+    foreach ($setting in $required) { if ($c.Config.Env -cnotcontains $setting) { throw "Configuración segura no verificada en $name. No se inicia ningún servicio." } }
+}
+$gateway = (docker --context desktop-linux inspect abogacia-gateway-1 | ConvertFrom-Json)[0]
+if ($gateway.Config.Env -cnotcontains 'ABOGACIA_ISOLATED_ROUTING_ENABLED=false') { throw 'Gateway habitual no verificado; arranque cancelado.' }
+foreach ($name in $names) {
+    docker --context desktop-linux start $name | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "No se pudo iniciar $name. Revisá el estado antes de continuar." }
+    if ($name -eq 'abogacia-postgres-1') {
+        $ready = $false
+        for ($i=0; $i -lt 30; $i++) {
+            $health = docker --context desktop-linux inspect --format '{{.State.Health.Status}}' $name
+            if ($health -eq 'healthy') { $ready = $true; break }
+            Start-Sleep -Seconds 1
+        }
+        if (-not $ready) { throw 'PostgreSQL no está saludable; no se iniciarán backends.' }
     }
 }
-
-# 2. Docker abierto (si está cerrado, se abre y se espera)
-if (-not (DockerListo)) {
-    $app = "$env:ProgramFiles\Docker\Docker\Docker Desktop.exe"
-    if (Test-Path $app) { Start-Process $app }
-    Write-Host 'Abriendo Docker Desktop. Puede tardar un par de minutos...'
-    for ($i = 0; $i -lt 90 -and -not (DockerListo); $i++) { Start-Sleep -Seconds 2 }
-    if (-not (DockerListo)) { Salir "Docker Desktop no terminó de iniciar.`nAbrilo a mano, esperá a que diga 'Engine running' y volvé a abrir iniciar.bat." }
+docker --context desktop-linux inspect --format '{{.Name}}' abogacia-frontend-admin-1 2>$null | Out-Null
+if ($LASTEXITCODE -eq 0) {
+    docker --context desktop-linux start abogacia-frontend-admin-1 | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'No se pudo iniciar el frontend administrativo existente.' }
+    Write-Host 'Administración independiente: http://localhost:5174/admin'
 }
-Write-Host 'Docker está listo.' -ForegroundColor Green
-
-# 3. Configuración: se crea una sola vez a partir de .env.example
-function Aleatorio { $b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b) }
-function LeerEnv { [IO.File]::ReadAllLines("$raiz\.env", $utf8) }
-function GuardarValor($clave, $valor) {
-    $lineas = LeerEnv | ForEach-Object { if ($_ -match "^$clave=") { "$clave=$valor" } else { $_ } }
-    [IO.File]::WriteAllLines("$raiz\.env", $lineas, $utf8)
-}
-if (-not (Test-Path "$raiz\.env")) {
-    Paso 'Creando la configuración (solo la primera vez)...'
-    [IO.File]::WriteAllLines("$raiz\.env", [IO.File]::ReadAllLines("$raiz\.env.example", $utf8), $utf8)
-    GuardarValor 'DB_PASSWORD' (Aleatorio)
-    GuardarValor 'INTERNAL_PASSWORD' (Aleatorio)
-    GuardarValor 'JWT_SECRET' (Aleatorio)
-    # Valores de desarrollo: códigos de email en los logs y verificación con Didit habilitada para probar.
-    GuardarValor 'ABOGADOS_CORREO_CONSOLA' 'true'
-    GuardarValor 'DIDIT_PRIVACY_READY' 'true'
-    GuardarValor 'DIDIT_NOTICE_VERSION' '0.1-dev'
-}
-
-# 4. API Key de Didit (se guarda solo en .env, que no se sube al repositorio)
-$claveActual = (LeerEnv | Where-Object { $_ -match '^DIDIT_API_KEY=' }) -replace '^DIDIT_API_KEY=', ''
-if (-not $claveActual.Trim()) {
-    Paso 'Falta la API Key de Didit'
-    Write-Host 'Pegala y presioná Enter (no se va a ver mientras la pegás).'
-    Write-Host 'Si no la tenés, presioná Enter: todo funciona menos la verificación de identidad.' -ForegroundColor DarkGray
-    $segura = Read-Host 'API Key' -AsSecureString
-    $clave = [System.Net.NetworkCredential]::new('', $segura).Password.Trim()
-    if ($clave) { GuardarValor 'DIDIT_API_KEY' $clave; Write-Host 'API Key guardada.' -ForegroundColor Green }
-}
-
-# 5. Levantar todo
-Paso 'Iniciando AbogacIA. La primera vez tarda varios minutos (descarga y compila todo)...'
-docker compose up -d --build --wait
-if ($LASTEXITCODE -ne 0) {
-    Salir "No se pudo iniciar AbogacIA.`nProbá volver a abrir iniciar.bat. Si sigue fallando, mandale una captura de esta ventana a quien mantiene el proyecto."
-}
-
-Paso 'Listo'
-Write-Host 'AbogacIA está funcionando en http://localhost:5173' -ForegroundColor Green
-Write-Host ''
-Write-Host ' - Los códigos de confirmación de email no llegan por correo: abrí ver-codigos.bat.'
-Write-Host ' - Para apagar todo: abrí detener.bat.'
-Start-Process 'http://localhost:5173'
-Read-Host "`nPresioná Enter para cerrar esta ventana (AbogacIA sigue funcionando)"
+Write-Host 'Aplicación habitual: http://localhost:5173.'

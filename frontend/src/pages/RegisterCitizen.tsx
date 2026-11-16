@@ -1,3 +1,4 @@
+import { reenviarConfirmacion } from '../services/correoService.js'
 import { useState } from "react"
 import { t, uiText } from "../i18n/core"
 import { confirmarRegistro, identidadCiudadano, registrarCiudadano } from "../services/ciudadanoService"
@@ -118,23 +119,23 @@ export default function RegisterCitizenPage({ navigate }: { navigate: (p: Page) 
               <input
                 id="verification-code"
                 type="text"
-                inputMode="numeric"
+                inputMode="text"
                 autoComplete="one-time-code"
-                maxLength={6}
+                maxLength={43}
                 autoFocus
                 value={codigo}
                 aria-invalid={!!error}
                 onChange={(e) => {
-                  setCodigo(e.target.value.replace(/\D/g, "").slice(0, 6))
+                  setCodigo(e.target.value.trim().slice(0, 43))
                   setError("")
                 }}
-                placeholder="000000"
-                className={`w-full bg-[#fbf8ef] border rounded-xl px-4 py-3.5 text-center text-2xl tracking-[0.45em] font-bold text-[#102247] placeholder-[#a3abb8] focus:outline-none transition-colors ${
+                placeholder="Pegá el código recibido por correo"
+                className={`w-full bg-[#fbf8ef] border rounded-xl px-4 py-3.5 text-center text-sm font-bold text-[#102247] placeholder-[#a3abb8] focus:outline-none transition-colors ${
                   error ? "border-red-500/70" : "border-[#d8d2c4] focus:border-[#94651c]/70"
                 }`}
               />
               {error && <p className="text-red-700 text-xs text-center mt-2">{error}</p>}
-              <button type="submit" disabled={cargando || codigo.length !== 6} className={`${primaryButton} mt-5`}>
+              <button type="submit" disabled={cargando || codigo.length !== 43} className={`${primaryButton} mt-5`}>
                 {cargando ? (
                   <>
                     <Spinner /> {t("auth.verifying")}
@@ -145,6 +146,7 @@ export default function RegisterCitizenPage({ navigate }: { navigate: (p: Page) 
               </button>
             </form>
             <div className="mt-5 pt-5 border-t border-[#d8d2c4]/40 text-center">
+              <button type="button" className="link mt-4" disabled={cargando} onClick={async () => { setCargando(true); setError(''); try { setError(await reenviarConfirmacion('CIUDADANO', form.email)) } catch(e) { setError(e instanceof Error ? e.message : 'No se pudo solicitar el correo.') } finally { setCargando(false) } }}>Reenviar correo de confirmaci?n</button>
               <button type="button" onClick={() => setStep("form")} className="text-xs text-[#1f5f9b] hover:underline">
                 {t("auth.changeEmailAddress")}
               </button>
@@ -152,7 +154,7 @@ export default function RegisterCitizenPage({ navigate }: { navigate: (p: Page) 
           </div>
           <div className="mt-4 bg-[#eef1f5]/60 border border-[#d8d2c4]/40 rounded-xl px-4 py-3 text-center">
             <p className="text-xs text-[#657084]">
-              En desarrollo el código no se envía por email: abrí <strong>ver-codigos.bat</strong> o ejecutá <code>docker compose logs ciudadanos</code>.
+              Revisá tu correo y la carpeta de spam. El código vence en 30 minutos.
             </p>
           </div>
         </div>

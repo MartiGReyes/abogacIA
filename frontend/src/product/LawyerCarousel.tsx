@@ -1,3 +1,4 @@
+import { FotoPerfil } from './FotoPerfil'
 import { t, uiText, formatMoney } from "../i18n/core"
 import { useEffect, useId, useRef, useState } from "react"
 import { Badge, Button, Empty, Heading, Icon } from "./UI"
@@ -29,7 +30,7 @@ function LawyerCard({
     <article className="catalog-card professional-card">
       <div className="professional-card-top">
         <div className="professional-photo">
-          <span className="initials-photo" aria-hidden="true">{lawyer.initials}</span>
+          <FotoPerfil initials={lawyer.initials} id={lawyer.perfil.idAbogado} />
           {lawyer.verified && (
             <span className="photo-verified" title="Matrícula verificada">
               <Icon name="check" />

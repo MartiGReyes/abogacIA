@@ -1,17 +1,13 @@
-import { t, uiText, formatNumber, intlLocale, TIME_ZONE } from "../i18n/core"
+import { FotoPerfil, FotoPerfilEditor } from './FotoPerfil'
+import { Estadisticas } from "./Estadisticas"
+import { SolicitudesPanel, Valoraciones } from "./Solicitudes"
+import { t, uiText, formatNumber } from "../i18n/core"
 import { useEffect, useState } from "react"
 import {
   AREAS,
-  PERIODS,
   dateKey,
-  inRange,
-  localDate,
-  localDateTime,
-  periodRange,
   type ContactoGuardado,
-  type DateRange,
   type Page,
-  type Period,
   type ProfessionalCase,
 } from "./model"
 import { useProduct } from "./Store"
@@ -35,7 +31,7 @@ function useRemote<T>(load: () => Promise<T>, initial: T, version: number): Remo
   const [state, setState] = useState<Remote<T>>({ loading: true, data: initial, error: "" })
   useEffect(() => {
     let alive = true
-    setState((s) => ({ ...s, loading: true, error: "" }))
+    setState((s) => ({ ...s, error: "" }))
     load()
       .then((data) => alive && setState({ loading: false, data, error: "" }))
       .catch((e: Error) => alive && setState({ loading: false, data: initial, error: e.message }))
@@ -47,153 +43,18 @@ function useRemote<T>(load: () => Promise<T>, initial: T, version: number): Remo
   return state
 }
 
-function PeriodFilter({ period, setPeriod, custom, setCustom }: { period: Period; setPeriod: (v: Period) => void; custom: DateRange; setCustom: (v: DateRange) => void }) {
-  return (
-    <div className="period-filter">
-      <Select label={t("dashboard.analysisPeriod")} value={period} onChange={(e) => setPeriod(e.target.value as Period)}>
-        {PERIODS.map((p) => (
-          <option key={p} value={p}>
-            {uiText(p)}
-          </option>
-        ))}
-      </Select>
-      {period === "Personalizado" && (
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={t("dashboard.from")} type="date" value={custom.start} max={custom.end} onChange={(e) => setCustom({ ...custom, start: e.target.value })} />
-          <Field label={t("dashboard.to")} type="date" value={custom.end} min={custom.start} max={dateKey()} onChange={(e) => setCustom({ ...custom, end: e.target.value })} />
-        </div>
-      )}
-    </div>
-  )
-}
-
-/** Consultas recibidas agrupadas por día (o por mes en rangos largos). */
-function buckets(rows: ContactoGuardado[], range: DateRange) {
-  if (!range.start || !range.end || range.start > range.end) return []
-  const days = (Date.parse(range.end) - Date.parse(range.start)) / 86400000 + 1
-  const monthly = days > 70
-  const grouped = new Map<string, { key: string; label: string; count: number }>()
-  const end = new Date(`${range.end}T12:00:00Z`)
-  for (
-    let d = new Date(`${range.start}T12:00:00Z`);
-    d <= end;
-    monthly ? d.setUTCMonth(d.getUTCMonth() + 1, 1) : d.setUTCDate(d.getUTCDate() + Math.max(1, Math.ceil(days / 12)))
-  ) {
-    const key = d.toISOString().slice(0, monthly ? 7 : 10)
-    grouped.set(key, {
-      key,
-      label: new Intl.DateTimeFormat(intlLocale(), monthly ? { month: "short", year: "2-digit", timeZone: TIME_ZONE } : { day: "numeric", month: "short", timeZone: TIME_ZONE }).format(d),
-      count: 0,
-    })
-  }
-  const all = [...grouped.values()].reverse()
-  rows.forEach((r) => {
-    if (!inRange(r.creadoEn, range)) return
-    const k = dateKey(new Date(r.creadoEn)).slice(0, monthly ? 7 : 10)
-    const b = all.find((b) => b.key <= k)
-    if (b) b.count++
-  })
-  return [...grouped.values()]
-}
-
-function Bars({ rows }: { rows: ReturnType<typeof buckets> }) {
-  const max = Math.max(1, ...rows.map((r) => r.count))
-  if (!rows.some((r) => r.count > 0))
-    return <Empty title={t("dashboard.noActivityInThisPeriod")}>{t("dashboard.tryAnotherPeriodOrAHistoricalDateRange")}</Empty>
-  return (
-    <>
-      <div className="chart-legend">
-        <span>
-          <i className="legend-navy" /> Consultas recibidas
-        </span>
-      </div>
-      <div className="chart-with-axis">
-        <div className="chart-y-axis" aria-hidden="true">
-          {[max, max / 2, 0].map((n, i) => (
-            <span key={i}>{Number.isInteger(n) ? n : formatNumber(n, { maximumFractionDigits: 1 })}</span>
-          ))}
-        </div>
-        <div className="chart" role="group" aria-label="Consultas recibidas en el tiempo">
-          {rows.map((r) => (
-            <div key={r.key} className="chart-column" tabIndex={0} aria-label={`${r.label}: ${r.count}`}>
-              <div className="chart-tooltip" role="tooltip">
-                {r.label}
-                <br />
-                {r.count} {r.count === 1 ? "consulta" : "consultas"}
-              </div>
-              <div className="bar-pair">
-                <div className="bar bar-navy" style={{ height: `${(r.count / max) * 100}%` }} />
-              </div>
-              <span>{r.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <details className="chart-data">
-        <summary>{t("dashboard.viewChartData")}</summary>
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>{t("dashboard.period")}</th>
-                <th>Consultas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.key}>
-                  <td>{r.label}</td>
-                  <td>{formatNumber(r.count)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </details>
-    </>
-  )
-}
-
-function ContactList({ rows, compact, onShowAll }: { rows: ContactoGuardado[]; compact?: boolean; onShowAll?: () => void }) {
-  if (!rows.length)
-    return <Empty title="Todavía no recibiste consultas">Cuando un ciudadano complete el formulario de contacto, vas a ver una copia acá.</Empty>
-  return (
-    <>
-      <div className="request-list">
-        {(compact ? rows.slice(0, 4) : rows).map((r) => (
-          <article className="contact-card" key={r.id}>
-            <header>
-              <strong>{r.nombre}</strong>
-              <span className="status-pill">
-                <Icon name="calendar" /> {localDateTime(r.creadoEn)}
-              </span>
-            </header>
-            <p className="preserve-lines">{r.resumen}</p>
-            <p className="ui-muted">Teléfono de contacto: {r.telefono}</p>
-          </article>
-        ))}
-      </div>
-      {compact && rows.length > 4 && onShowAll && (
-        <Button variant="ghost" onClick={onShowAll}>
-          Ver todas las consultas <Icon name="arrow" />
-        </Button>
-      )}
-    </>
-  )
+function ContactList({ rows, onReload }: { rows: ContactoGuardado[]; compact?: boolean; onShowAll?: () => void; onReload: () => void }) {
+ return <SolicitudesPanel rows={rows} ciudadano={false} onReload={onReload} />
 }
 
 export function Dashboard({ section = "dashboard", navigate }: { section?: Section; navigate: (p: Page) => void }) {
   const store = useProduct()
   const [version, setVersion] = useState(0)
   const [casesVersion, setCasesVersion] = useState(0)
+  useEffect(() => { const refresh = () => setVersion(v => v + 1); const timer = setInterval(refresh, 15000); window.addEventListener("focus", refresh); return () => { clearInterval(timer); window.removeEventListener("focus", refresh) } }, [])
   const perfil = useRemote<Perfil | null>(() => obtenerMiPerfilAbogado(), null, version)
   const contactos = useRemote<ContactoGuardado[]>(() => contactosRecibidos(), [], version)
   const casos = useRemote<ProfessionalCase[]>(() => misCasos(), [], casesVersion)
-  const [period, setPeriod] = useState<Period>("Este mes")
-  const [custom, setCustom] = useState({ start: `${dateKey().slice(0, 7)}-01`, end: dateKey() })
-  const range = periodRange(period, custom)
-  const validRange = !!range.start && !!range.end && range.start <= range.end
-  const enRango = contactos.data.filter((r) => inRange(r.creadoEn, range))
   const publicados = casos.data.filter((c) => c.publicado).length
   const p = perfil.data
   const titles = { dashboard: "dashboard.myProfessionalDashboard", cases: "dashboard.myProfessionalCases", statistics: "dashboard.myActivityStatistics" }
@@ -217,18 +78,16 @@ export function Dashboard({ section = "dashboard", navigate }: { section?: Secti
           <Heading level={1}>{uiText(titles[section])}</Heading>
           <p className="ui-muted page-description">{uiText(descriptions[section])}</p>
           <div className="professional-identity">
-            <span className="avatar-initials">
-              {(p?.nombre?.[0] ?? store.user?.nombre[0] ?? "").toUpperCase()}
-              {(p?.apellido?.[0] ?? "").toUpperCase()}
-            </span>
+            <FotoPerfil propia className="avatar-initials" initials={((p?.nombre?.[0] ?? store.user?.nombre[0] ?? "") + (p?.apellido?.[0] ?? "")).toUpperCase()} />
             <span>
               <strong>{p ? `${p.nombre} ${p.apellido}` : store.user?.nombre}</strong>
               <small>{p?.especialidades?.length ? p.especialidades.map(uiText).join(" · ") : "Especialidades no informadas"}</small>
             </span>
           </div>
         </div>
-        {section === "statistics" && <PeriodFilter period={period} setPeriod={setPeriod} custom={custom} setCustom={setCustom} />}
+
       </div>
+      {section === "dashboard" && p && <FotoPerfilEditor initials={(p.nombre[0] + p.apellido[0]).toUpperCase()} />}
       {p?.cuentaPrueba && (
         <div className="demo-notice">
           <Icon name="shield" />
@@ -293,64 +152,18 @@ export function Dashboard({ section = "dashboard", navigate }: { section?: Secti
           <Card>
             <div className="section-caption">
               <div>
-                <Heading>Últimas consultas recibidas</Heading>
+                <Heading>Solicitudes y asesoramientos recibidos</Heading>
                 <p className="ui-muted">Copia de los formularios que los ciudadanos confirmaron antes de abrir WhatsApp.</p>
               </div>
             </div>
-            {contactos.loading ? <p className="loading-line">Cargando…</p> : <ContactList rows={contactos.data} compact onShowAll={() => navigate("statistics")} />}
+            {contactos.loading ? <p className="loading-line">Cargando…</p> : <ContactList onReload={() => setVersion(v => v + 1)} rows={contactos.data} compact onShowAll={() => navigate("statistics")} />}
           </Card>
+          <Card><Valoraciones propias /></Card>
           <CaseManager compact rows={casos} reload={() => setCasesVersion((v) => v + 1)} onShowAll={() => navigate("cases")} />
         </>
       )}
 
-      {section === "statistics" && (
-        <>
-          {!validRange && (
-            <p role="alert" className="ui-error">
-              {t("dashboard.selectAValidDateRange")}
-            </p>
-          )}
-          {validRange && (
-            <>
-              <div className="section-caption">
-                <Heading>{t("dashboard.yourActivityInPerspective")}</Heading>
-                <span className="ui-muted">
-                  {localDate(range.start)} — {localDate(range.end)}
-                </span>
-              </div>
-              <div className="kpi-grid">
-                {(
-                  [
-                    ["Consultas en el período", formatNumber(enRango.length), "Formularios confirmados", "chat"],
-                    ["Consultas históricas", formatNumber(contactos.data.length), "Desde que usás abogacIA", "briefcase"],
-                    ["Casos publicados", formatNumber(publicados), "Visibles en tu perfil", "cases"],
-                  ] as const
-                ).map(([title, value, detail, icon]) => (
-                  <Card className="kpi" key={title}>
-                    <div className="kpi-top">
-                      <span className="ui-muted">{title}</span>
-                      <span className="ui-icon-tile">
-                        <Icon name={icon} />
-                      </span>
-                    </div>
-                    <p className="kpi-value">{value}</p>
-                    <p className="ui-muted kpi-detail">{detail}</p>
-                  </Card>
-                ))}
-              </div>
-              <Card>
-                <Heading level={3}>{t("dashboard.consultationsByPeriod")}</Heading>
-                <p className="ui-muted card-subtitle">Según la fecha en que el ciudadano preparó el mensaje.</p>
-                <Bars rows={buckets(contactos.data, range)} />
-              </Card>
-              <Card>
-                <Heading>Consultas del período</Heading>
-                <ContactList rows={enRango} />
-              </Card>
-            </>
-          )}
-        </>
-      )}
+      {section === "statistics" && <Estadisticas />}
 
       {section === "cases" && <CaseManager rows={casos} reload={() => setCasesVersion((v) => v + 1)} onShowAll={() => navigate("cases")} />}
       <footer className="product-footer">

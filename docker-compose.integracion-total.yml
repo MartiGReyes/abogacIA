@@ -1,0 +1,4 @@
+# Apply after the safe-backend and lexi-final overlays; only deploy frontend --no-deps.
+services:
+  frontend:
+    image: abogacia-frontend:integracion-total-20261115

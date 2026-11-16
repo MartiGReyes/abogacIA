@@ -40,14 +40,17 @@ public class ImportarPadron {
     }
     boolean anexo=false;
     for(Row fila:hoja) {
-     if(hoja.getSheetName().equals("Hoja2") && celda(fila,1,formatter).equals("MP") && celda(fila,4,formatter).equals("Estado")) {
+     if(hoja.getSheetName().equals("Hoja2") && celda(fila,1,formatter).equals("MP")
+       && celda(fila,2,formatter).equals("Apellido y Nombre")
+       && celda(fila,3,formatter).equals("Otorgamiento")) {
       anexo=true; continue;
      }
      if(anexo) { m=1;n=2;d=6;e=4; }
      if(fila.getRowNum()<inicio)continue;
      String matricula=celda(fila,m,formatter);
      if(matricula.isBlank())continue;
-     if(!matricula.matches("10-[0-9]{3}")) throw new IllegalArgumentException("Matrícula con formato inesperado en "+hoja.getSheetName()+":"+(fila.getRowNum()+1));
+     // Same format accepted by professional registration; format alone does not validate identity or activity.
+     if(!matricula.matches("([0-9]{1,3}-)?[0-9]{1,6}")) throw new IllegalArgumentException("Matrícula con formato inesperado en "+hoja.getSheetName()+":"+(fila.getRowNum()+1));
      String dni=d<0?"":celda(fila,d,formatter).replace(".","").replace(",","").replace(" ","");
      if(!dni.isBlank() && !dni.matches("[0-9]{7,8}"))dni="INVALIDO";
      if(datos.size()>=30000)throw new IllegalArgumentException("El padrón admite como máximo 30000 filas.");

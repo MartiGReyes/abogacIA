@@ -18,6 +18,8 @@ public class VerificacionIdentidadController {
     private final Map<String,List<Instant>> intentos=new HashMap<>();
     public VerificacionIdentidadController(VerificacionIdentidadGestor gestor){this.gestor=gestor;}
     public record AccesoRequest(@NotBlank @Email @Size(max=254) String mail,@NotBlank @Size(max=72) String contrasena){
+  public AccesoRequest {mail=com.abogacia.microservicio_ciudadanos.correo.CorreoNormalizado.normalizar(mail);}
+
         @Override public String toString(){return "AccesoRequest[datos omitidos]";}
     }
     public record ConsentimientoRequest(@AssertTrue boolean consentimiento,@NotBlank @Size(max=100) String avisoVersion) {}

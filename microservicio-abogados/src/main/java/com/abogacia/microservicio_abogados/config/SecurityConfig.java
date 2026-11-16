@@ -27,7 +27,7 @@ public class SecurityConfig {
 
     @Bean @Order(0)
     SecurityFilterChain contactoSecurity(HttpSecurity http) throws Exception {
-        return http.securityMatcher("/api/abogados/contacto/whatsapp", "/api/abogados/contactos/mios").csrf(c->c.disable()).cors(Customizer.withDefaults())
+        return http.securityMatcher("/api/abogados/contacto/whatsapp", "/api/abogados/contactos/mios", "/api/abogados/contactos/mios/**").csrf(c->c.disable()).cors(Customizer.withDefaults())
             .sessionManagement(s->s.sessionCreationPolicy(SessionCreationPolicy.STATELESS)).authorizeHttpRequests(a->a.anyRequest().authenticated())
             .oauth2ResourceServer(o->o.jwt(Customizer.withDefaults())).build();
     }
@@ -57,8 +57,10 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
                     .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
-                    .requestMatchers(HttpMethod.POST, "/api/abogados/confirmar").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/abogados/recomendaciones", "/api/abogados/catalogo", "/api/abogados/catalogo/*/casos").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/abogados/confirmar", "/api/abogados/correo/reenviar").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/abogados/recuperacion/solicitar", "/api/abogados/recuperacion/confirmar").permitAll()
+                    .requestMatchers("/api/abogados/contactos/mios", "/api/abogados/contactos/mios/**").authenticated()
+                    .requestMatchers(HttpMethod.GET, "/api/abogados/recomendaciones", "/api/abogados/catalogo", "/api/abogados/catalogo/*/casos", "/api/abogados/catalogo/*/valoraciones", "/api/abogados/catalogo/*/foto").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/abogados/contacto/whatsapp").permitAll()
                     .requestMatchers("/api/abogados/verificacion/**").permitAll()
                     

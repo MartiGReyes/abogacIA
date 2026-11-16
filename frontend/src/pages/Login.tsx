@@ -1,12 +1,13 @@
 import { useContext, useState } from "react"
-import { useLocation } from "react-router-dom"
+import { useLocation, Link } from "react-router-dom"
 import { t } from "../i18n/core"
-import { iniciarSesion } from "../services/authService"
+import { iniciarSesion, sesionDeCuenta, usarSesionDeCuenta } from "../services/authService"
 import { Alert, InputField, Spinner, card, primaryButton } from "../product/AuthField"
 // Solo el contexto (sin el store): el frontend aislado de administración reutiliza esta pantalla.
 import { ProductContext } from "../product/Context"
 import type { Page } from "../ui"
-import logoImg from "../imports/logoabogacIA.png"
+import logoImg from "../imports/logonuevoabogacia.png"
+import adminLogoImg from "../imports/logoabogacIA.png"
 
 type Tipo = "CIUDADANO" | "ABOGADO"
 
@@ -42,7 +43,7 @@ export default function LoginPage({ navigate, admin = false }: { navigate: (p: P
     <div className="min-h-screen pt-24 pb-16 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <img src={logoImg} alt="AbogacIA" className="h-20 w-20 object-contain mx-auto mb-4" />
+          <img src={admin ? adminLogoImg : logoImg} alt="AbogacIA" className="h-20 w-20 object-contain mx-auto mb-4" />
           <h1 className="font-display font-extrabold text-3xl text-[#102247]">{admin ? "Acceso de administrador" : t("auth.signIn")}</h1>
           <p className="text-[#657084] mt-2 text-sm">{t("auth.accessYourAbogaciaAccount")}</p>
         </div>
@@ -109,6 +110,11 @@ export default function LoginPage({ navigate, admin = false }: { navigate: (p: P
 
           {!admin && (
             <div className="mt-5 pt-5 border-t border-[#d8d2c4]/40 text-center space-y-2">
+              <p className="text-sm">Ciudadano y abogado son cuentas independientes, aunque compartan DNI y correo.</p>
+              <Link className="link" to={`/recuperar-acceso?cuenta=${tipo}`}>Olvidé mi contraseña</Link>
+              {sesionDeCuenta(tipo) && <button className="btn btn-secondary" type="button" onClick={() => {
+                if (usarSesionDeCuenta(tipo)) navigate(tipo === 'ABOGADO' ? 'dashboard' : 'home')
+              }}>Continuar con mi sesión de {tipo === 'ABOGADO' ? 'abogado' : 'ciudadano'}</button>}
               <p className="text-sm text-[#657084]">
                 {t("auth.donTHaveAnAccount")}{" "}
                 <button onClick={() => navigate(tipo === "CIUDADANO" ? "register-citizen" : "register-lawyer")} className="text-[#926315] hover:underline font-medium">

@@ -1,0 +1,15 @@
+# Overlay del proyecto principal; conserva los volúmenes y servicios de ambos entornos.
+services:
+  gateway:
+    build: ./docker/unificado
+    environment:
+      OP_JWT_SECRET: ${OP_JWT_SECRET:?Cargar docker/contacto-operativo-test/.env}
+    networks: [default, operativa]
+  frontend:
+    volumes:
+      - ./docker/unificado/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on: [gateway, autenticacion]
+networks:
+  operativa:
+    external: true
+    name: abogacia-contacto-operativo-test_operativa-private

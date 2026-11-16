@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { ProductContext } from "./Context"
 import { toLawyer, type Lawyer, type PerfilContacto, type SessionUser } from "./model"
 import { useSesion } from "../AuthContext"
@@ -9,6 +9,7 @@ import { crearConversacion, inferirEspecialidad } from "../services/lexiConversa
 import { obtenerOrientacion } from "../services/lexiService.js"
 import { obtenerRecomendaciones } from "../services/abogadoService.js"
 import { guardarEnHistorial } from "../services/historialService.js"
+import { obtenerSesion } from "../services/authService.js"
 
 interface Sesion {
   rol: "CIUDADANO" | "ABOGADO" | "ADMIN"
@@ -17,8 +18,11 @@ interface Sesion {
 
 /** Orientación real (n8n) y, si hay un ciudadano con sesión, copia en su historial. */
 async function orientarYGuardar(texto: string) {
+  const cuentaOrigen = obtenerSesion()?.token
   const respuesta = await obtenerOrientacion(texto)
-  void guardarEnHistorial(texto, respuesta, inferirEspecialidad(texto))
+  if (cuentaOrigen && obtenerSesion()?.token === cuentaOrigen) {
+    void guardarEnHistorial(texto, respuesta.orientacion, inferirEspecialidad(texto))
+  }
   return respuesta
 }
 
@@ -33,7 +37,9 @@ function useStoreValue() {
   const [profile, setProfile] = useState<Lawyer | null>(null)
   const [contact, setContactState] = useState<Lawyer | null>(null)
   const [contactSeed, setContactSeed] = useState("")
+  const [contactLexi, setContactLexi] = useState<{ consulta: string; orientacion: string } | null>(null)
   const [pendingContact, setPendingContact] = useState<Lawyer | null>(null)
+  const cuentaAnterior = useRef(sesion?.token)
   const [chatOpen, setChatOpen] = useState(false)
   const [toast, setToast] = useState("")
   const [information, setInformation] = useState<{ title: string; body: string } | null>(null)
@@ -99,24 +105,72 @@ function useStoreValue() {
           cuentaPrueba: perfil?.cuentaPrueba,
         }
 
-  const setContact = useCallback((lawyer: Lawyer | null, seed = "") => {
-    setContactSeed(seed)
+  const profileRecommendation = useRef<string | null>(null)
+  const contactRecommendation = useRef<string | null>(null)
+  const pendingRecommendation = useRef<string | null>(null)
+  const authorized = useCallback((id: string) => {
+    const offers = conversation.getSnapshot().recomendaciones as Record<string, { mostrarAbogados?: boolean; estado: string }>
+    const offer = offers[id]
+    return offer?.mostrarAbogados === true && offer.estado === "lista"
+  }, [conversation])
+  const selectProfile = useCallback((lawyer: Lawyer | null, recommendationId?: string) => {
+    if (lawyer && recommendationId && !authorized(recommendationId)) return
+    profileRecommendation.current = recommendationId ?? null
+    setProfile(lawyer)
+  }, [authorized])
+  const setContact = useCallback((lawyer: Lawyer | null, seed = "", recommendationId?: string) => {
+    const source = recommendationId ?? (lawyer && profile?.id === lawyer.id ? profileRecommendation.current : null)
+    if (lawyer && source && !authorized(source)) return
+    contactRecommendation.current = source ?? null
+    const offers = conversation.getSnapshot().recomendaciones as Record<string, { consulta?: string; orientacion?: string }>
+    setContactSeed(seed || (source ? offers[source]?.consulta ?? "" : ""))
+    const offer = source ? offers[source] : null
+    setContactLexi(offer?.consulta && offer?.orientacion ? { consulta: offer.consulta, orientacion: offer.orientacion } : null)
     setContactState(lawyer)
-  }, [])
+  }, [authorized, profile, conversation])
+  const selectPendingContact = useCallback((lawyer: Lawyer | null) => {
+    const source = contactRecommendation.current ?? profileRecommendation.current
+    if (lawyer && source && !authorized(source)) return
+    pendingRecommendation.current = lawyer ? source : null
+    setPendingContact(lawyer)
+  }, [authorized])
+
+  useEffect(() => {
+    const unsubscribe = conversation.subscribe(() => {
+      const invalid = [profileRecommendation.current, contactRecommendation.current, pendingRecommendation.current].some(id => id && !authorized(id))
+      if (!invalid) return
+      profileRecommendation.current = null
+      contactRecommendation.current = null
+      pendingRecommendation.current = null
+      setProfile(null)
+      setContactState(null)
+      setContactSeed("")
+      setContactLexi(null)
+      setPendingContact(null)
+    })
+    return () => { unsubscribe() }
+  }, [conversation, authorized])
 
   // Retoma el contacto elegido antes de iniciar sesión.
   useEffect(() => {
     if (sesion?.rol === "CIUDADANO" && pendingContact) {
+      contactRecommendation.current = pendingRecommendation.current
+      pendingRecommendation.current = null
       setContactState(pendingContact)
       setPendingContact(null)
     }
   }, [sesion, pendingContact])
 
   useEffect(() => {
-    if (!sesion) {
+    if (!sesion || (cuentaAnterior.current && cuentaAnterior.current !== sesion.token)) {
       setProfile(null)
       setContactState(null)
+      setContactLexi(null)
+      setContactSeed("")
+      setPendingContact(null)
+      setPerfil(null)
     }
+    cuentaAnterior.current = sesion?.token
   }, [sesion])
 
   useEffect(() => {
@@ -134,12 +188,13 @@ function useStoreValue() {
     catalogError,
     reloadCatalog: () => setCatalogVersion((v) => v + 1),
     profile,
-    setProfile,
+    setProfile: selectProfile,
     contact,
     contactSeed,
+    contactLexi,
     setContact,
     pendingContact,
-    setPendingContact,
+    setPendingContact: selectPendingContact,
     chatOpen,
     setChatOpen,
     toast,

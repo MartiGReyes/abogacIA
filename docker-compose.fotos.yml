@@ -1,0 +1,10 @@
+# Candidate only. Do not apply before deployment authorization. Preserve current effective Gmail/Didit/safe-start environment.
+services:
+  abogados:
+    environment:
+      ABOGACIA_FOTOS_ENABLED: "true"
+      ABOGACIA_FOTOS_DIRECTORIO: /datos/fotos-perfil
+    volumes:
+      - fotos_abogados:/datos/fotos-perfil
+volumes:
+  fotos_abogados:

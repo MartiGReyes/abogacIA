@@ -11,6 +11,7 @@ import java.time.LocalDate;
 @Service
 public class ModificarCiudadanoGestor {
 
+    @org.springframework.beans.factory.annotation.Autowired private com.abogacia.microservicio_ciudadanos.correo.CambiarCorreo cambioCorreo;
     private final CiudadanoRepository ciudadanoRepository;
 
     public ModificarCiudadanoGestor(
@@ -36,7 +37,7 @@ public class ModificarCiudadanoGestor {
         if (ciudadano.getEstado() == null || !"REGISTRADO".equals(ciudadano.getEstado().getNombreEstado()))
             throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "Cuenta no habilitada.");
 
-        if (!ciudadano.getMail().equals(request.getMail())
+        if (!com.abogacia.microservicio_ciudadanos.correo.CorreoNormalizado.normalizar(ciudadano.getMail()).equals(com.abogacia.microservicio_ciudadanos.correo.CorreoNormalizado.normalizar(request.getMail()))
                 && ciudadanoRepository.existsByMail(request.getMail())) {
 
             throw new IllegalArgumentException(
@@ -52,7 +53,7 @@ public class ModificarCiudadanoGestor {
                 LocalDate.parse(request.getFechaNacimiento())
                 );}
         ciudadano.setDireccion(request.getDireccion());
-        ciudadano.setMail(request.getMail());
+        if(!com.abogacia.microservicio_ciudadanos.correo.CorreoNormalizado.normalizar(ciudadano.getMail()).equals(request.getMail()))cambioCorreo.cambiar(ciudadano,request.getMail());
         ciudadano.setNroCelular(request.getNroCelular());
 
         Ciudadano actualizado =

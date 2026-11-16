@@ -1,12 +1,15 @@
+import { FotoPerfil } from './FotoPerfil'
+import { ConsultasCiudadano, Valoraciones } from "./Solicitudes"
 import { t, uiText, formatMoney } from "../i18n/core"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
-import { localDateTime, toLawyer, type ContactoGuardado, type Lawyer, type Page, type PerfilContacto, type ProfessionalCase } from "./model"
+import { toLawyer, type Lawyer, type Page, type PerfilContacto, type ProfessionalCase } from "./model"
 import { useProduct } from "./Store"
-import { Badge, Button, Card, Empty, Field, Heading, Icon, Modal } from "./UI"
+import { Badge, Button, Card, Empty, Field, Heading, Icon, Modal, Select } from "./UI"
 import { LawyerBadge } from "./LawyerCarousel"
 import lexiImg from "../imports/mazcotalexi.png"
 import { casosPublicos } from "../services/casosService.js"
-import { AVISO_CONTACTO, mensajeWhatsApp, misContactos, prepararContacto } from "../services/contactoService.js"
+import { AVISO_CONTACTO, mensajeWhatsApp, prepararContacto } from "../services/contactoService.js"
+import { resumirContactoLexi, combinarResumenLexi, LIMITES_RESUMEN } from "../services/resumenContacto.js"
 
 // ─── Casos ────────────────────────────────────────────────────────────────────
 
@@ -52,7 +55,7 @@ export function CaseDetail({ item, onClose }: { item: ProfessionalCase; onClose:
 function ProfileModal({ lawyer, onClose }: { lawyer: Lawyer; onClose: () => void }) {
   const store = useProduct()
   const [selectedCase, setSelectedCase] = useState<ProfessionalCase | null>(null)
-  const [tab, setTab] = useState<"info" | "cases">("info")
+  const [tab, setTab] = useState<"info" | "cases" | "reviews">("info")
   const [cases, setCases] = useState<{ loading: boolean; rows: ProfessionalCase[]; error: string }>({ loading: true, rows: [], error: "" })
   const profesional = lawyer.perfil.referencia.tipo === "PROFESIONAL"
   useEffect(() => {
@@ -69,13 +72,12 @@ function ProfileModal({ lawyer, onClose }: { lawyer: Lawyer; onClose: () => void
   const tabs = [
     ["info", "Información"],
     ["cases", "Casos y experiencia"],
+    ["reviews", "Valoraciones"],
   ] as const
   return (
     <Modal title={t("auth.professionalProfile")} onClose={onClose} wide>
       <div className="public-profile-heading">
-        <span className="initials-photo" aria-hidden="true">
-          {lawyer.initials}
-        </span>
+        <FotoPerfil initials={lawyer.initials} id={lawyer.perfil.idAbogado} />
         <div>
           <p className="eyebrow">{lawyer.specialties.map(uiText).join(" · ") || "Profesional del derecho"}</p>
           <Heading level={1}>{lawyer.name}</Heading>
@@ -103,8 +105,8 @@ function ProfileModal({ lawyer, onClose }: { lawyer: Lawyer; onClose: () => void
           </Button>
         ))}
       </div>
-      <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-tab-${tab === "info" ? 0 : 1}`} tabIndex={0}>
-        {tab === "info" ? (
+      <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-tab-${tab === "info" ? 0 : tab === "cases" ? 1 : 2}`} tabIndex={0}>
+        {tab === "reviews" ? <Valoraciones id={lawyer.perfil.referencia.id} /> : tab === "info" ? (
           <>
             <Heading>{t("public.professionalIntroduction")}</Heading>
             <p className="profile-description">{lawyer.description || "El profesional todavía no publicó una presentación."}</p>
@@ -192,13 +194,15 @@ function ProfileModal({ lawyer, onClose }: { lawyer: Lawyer; onClose: () => void
 
 // ─── Contacto por WhatsApp ────────────────────────────────────────────────────
 
-function ContactForm({ lawyer, seed, navigate }: { lawyer: Lawyer; seed: string; navigate: (p: Page) => void }) {
+function ContactForm({ lawyer, seed, lexi, navigate }: { lawyer: Lawyer; seed: string; lexi: { consulta: string; orientacion: string } | null; navigate: (p: Page) => void }) {
   const store = useProduct()
   const perfil = lawyer.perfil
+  const [resumenLexi, setResumenLexi] = useState(() => resumirContactoLexi(lexi))
   const [datos, setDatos] = useState({
     nombre: store.user ? `${store.user.nombre} ${store.user.apellido}`.trim() : "",
     telefono: "",
-    resumen: seed.slice(0, 800),
+    resumen: resumenLexi ? combinarResumenLexi(resumenLexi) : seed.slice(0, 800),
+    areaJuridica: lawyer.specialties.length > 1 ? "" : lawyer.specialties[0] || "Consulta general",
   })
   const [consentimiento, setConsentimiento] = useState("")
   const [error, setError] = useState("")
@@ -206,9 +210,10 @@ function ContactForm({ lawyer, seed, navigate }: { lawyer: Lawyer; seed: string;
   const [prepared, setPrepared] = useState<{ url: string; aviso: string; continuar: boolean } | null>(null)
   const ventana = useRef<Window | null>(null)
   const alive = useRef(true)
-  const mensaje = mensajeWhatsApp(perfil, datos)
+  const [mensajeEditado, setMensajeEditado] = useState<string | null>(null)
+  const mensaje = mensajeEditado ?? mensajeWhatsApp(perfil, datos)
   const firma = `${perfil.referencia.tipo}:${perfil.referencia.id}:${mensaje}`
-  const completo = Object.values(datos).every((v) => v.trim())
+  const completo = Object.values(datos).every((v) => v.trim()) && !!mensaje.trim() && (!resumenLexi || !!(resumenLexi.consulta.trim() && resumenLexi.orientacion.trim()))
   useEffect(() => {
     alive.current = true
     return () => {
@@ -218,8 +223,15 @@ function ContactForm({ lawyer, seed, navigate }: { lawyer: Lawyer; seed: string;
   }, [])
   function editar(campo: keyof typeof datos, valor: string) {
     setDatos((d) => ({ ...d, [campo]: valor }))
+    setMensajeEditado(null)
     setConsentimiento("")
     setError("")
+  }
+  function editarResumen(campo: "consulta" | "orientacion", valor: string) {
+    if (!resumenLexi) return
+    const siguiente = { ...resumenLexi, [campo]: valor }
+    setResumenLexi(siguiente)
+    editar("resumen", combinarResumenLexi(siguiente))
   }
   async function enviar(e: React.FormEvent) {
     e.preventDefault()
@@ -230,7 +242,7 @@ function ContactForm({ lawyer, seed, navigate }: { lawyer: Lawyer; seed: string;
     setSending(true)
     setError("")
     try {
-      const data = await prepararContacto(perfil, datos, mensaje)
+      const data = await prepararContacto(perfil, datos, mensaje, true)
       if (!alive.current) return
       const continuar = !ventana.current || ventana.current.closed
       if (!continuar) ventana.current!.location.replace(data.url)
@@ -279,9 +291,7 @@ function ContactForm({ lawyer, seed, navigate }: { lawyer: Lawyer; seed: string;
   return (
     <Modal title={t("contact.title", { name: lawyer.name })} onClose={() => !sending && store.setContact(null)}>
       <div className="contact-summary">
-        <span className="initials-photo" aria-hidden="true">
-          {lawyer.initials}
-        </span>
+        <FotoPerfil initials={lawyer.initials} id={lawyer.perfil.idAbogado} />
         <div>
           <strong>{lawyer.name}</strong>
           <small>
@@ -307,7 +317,14 @@ function ContactForm({ lawyer, seed, navigate }: { lawyer: Lawyer; seed: string;
             help="Formato +54 9, código de área y número, sin 0 ni 15."
           />
         </div>
-        <Field
+        <Select label="Área jurídica de la consulta" value={datos.areaJuridica} onChange={(e) => editar("areaJuridica", e.target.value)}><option value="" disabled>Seleccioná un área jurídica</option>{(lawyer.specialties.length ? lawyer.specialties : ["Consulta general"]).map((area) => <option key={area} value={area}>{area}</option>)}</Select>
+        {resumenLexi && lexi ? <section className="lexi-contact-excerpts" aria-label="Resumen de la consulta con Lexi">
+          <Heading level={3}>Resumen de la consulta con Lexi</Heading>
+          <p className="ui-muted">Son extractos literales de la consulta seleccionada y su orientación. Los textos largos se recortan con «…». Revisalos y editalos antes de compartirlos.</p>
+          <Field label="A. Consulta del ciudadano" multiline required maxLength={LIMITES_RESUMEN.consulta} value={resumenLexi.consulta} onChange={e => editarResumen("consulta", e.target.value)} help={`${resumenLexi.consulta.length}/${LIMITES_RESUMEN.consulta}`} />
+          <Field label="B. Orientación de Lexi" multiline required maxLength={LIMITES_RESUMEN.orientacion} value={resumenLexi.orientacion} onChange={e => editarResumen("orientacion", e.target.value)} help={`${resumenLexi.orientacion.length}/${LIMITES_RESUMEN.orientacion}`} />
+          <details><summary>Ver los textos originales de esta consulta</summary><h4>Consulta del ciudadano</h4><p className="preserve-lines">{lexi.consulta}</p><h4>Orientación de Lexi</h4><p className="preserve-lines">{lexi.orientacion}</p></details>
+        </section> : <Field
           label="Resumen de tu consulta"
           multiline
           required
@@ -315,10 +332,10 @@ function ContactForm({ lawyer, seed, navigate }: { lawyer: Lawyer; seed: string;
           value={datos.resumen}
           onChange={(e) => editar("resumen", e.target.value)}
           help={`${datos.resumen.length}/800 · No incluyas DNI, matrícula ni datos sensibles innecesarios.`}
-        />
+        />}
         <section aria-label="Vista previa del mensaje">
           <Heading level={3}>Vista previa del mensaje</Heading>
-          <p className="message-preview">{mensaje}</p>
+          <Field label="Mensaje para WhatsApp" multiline required maxLength={2000} value={mensaje} onChange={(e) => { setMensajeEditado(e.target.value); setConsentimiento(""); setError("") }} help="Podés editar el mensaje antes de confirmar. No incluyas datos sensibles." />
         </section>
         <label className="consent">
           <input
@@ -351,7 +368,7 @@ function ContactForm({ lawyer, seed, navigate }: { lawyer: Lawyer; seed: string;
 
 // ─── Lexi ─────────────────────────────────────────────────────────────────────
 
-type Recomendacion = { estado: string; especialidad: string | null; abogados: PerfilContacto[]; error: string; consulta: string }
+type Recomendacion = { mostrarAbogados: boolean; estado: string; especialidad: string | null; abogados: PerfilContacto[]; error: string; consulta: string }
 
 function LexiRecommendations({ id, data }: { id: string; data: Recomendacion }) {
   const store = useProduct()
@@ -391,9 +408,7 @@ function LexiRecommendations({ id, data }: { id: string; data: Recomendacion }) 
       {!lawyers.length && <p>No hay perfiles disponibles para esta consulta.</p>}
       {lawyers.map((l) => (
         <article key={l.id} className="recommendation">
-          <span className="initials-photo" aria-hidden="true">
-            {l.initials}
-          </span>
+          <FotoPerfil initials={l.initials} id={l.perfil.idAbogado} />
           <div>
             <strong>{l.name}</strong>
             <small>
@@ -403,10 +418,10 @@ function LexiRecommendations({ id, data }: { id: string; data: Recomendacion }) 
           </div>
           <p>{t("public.shownBecauseTheSpecialtyMatchesNotAsAGuarantee")}</p>
           <div className="action-row">
-            <Button variant="secondary" onClick={() => store.setProfile(l)}>
+            <Button variant="secondary" onClick={() => store.setProfile(l, id)}>
               {t("lawyers.viewProfile")}
             </Button>
-            <Button disabled={!l.contactEnabled} onClick={() => store.setContact(l, data.consulta)}>
+            <Button disabled={!l.contactEnabled} onClick={() => store.setContact(l, data.consulta, id)}>
               {l.contactEnabled ? t("lawyers.contact") : "Contacto no disponible"}
             </Button>
           </div>
@@ -462,7 +477,7 @@ export function LexiPanel() {
             <p translate="no" className="preserve-lines">
               {m.text}
             </p>
-            {ofertas[m.id] && <LexiRecommendations id={m.id} data={ofertas[m.id]} />}
+            {ofertas[m.id]?.mostrarAbogados === true && <LexiRecommendations id={m.id} data={ofertas[m.id]} />}
           </div>
         ))}
         {error && (
@@ -521,105 +536,8 @@ export function LexiPanel() {
 // ─── Mis consultas (formularios de contacto guardados) ────────────────────────
 
 export function CitizenConsultations({ navigate }: { navigate: (p: Page) => void }) {
-  const store = useProduct()
-  const [state, setState] = useState<{ loading: boolean; rows: ContactoGuardado[]; error: string }>({ loading: true, rows: [], error: "" })
-  const [version, setVersion] = useState(0)
-  const [query, setQuery] = useState("")
-  useEffect(() => {
-    let alive = true
-    setState((s) => ({ ...s, loading: true, error: "" }))
-    misContactos()
-      .then((rows: ContactoGuardado[]) => alive && setState({ loading: false, rows, error: "" }))
-      .catch((e: Error) => alive && setState({ loading: false, rows: [], error: e.message }))
-    return () => {
-      alive = false
-    }
-  }, [version])
-  const q = query.trim().toLowerCase()
-  const rows = state.rows.filter((r) => !q || `${r.abogado} ${r.especialidades} ${r.resumen}`.toLowerCase().includes(q))
-  const lawyerFor = (r: ContactoGuardado) => store.lawyers.find((l) => l.perfil.referencia.tipo === "PROFESIONAL" && l.perfil.referencia.id === String(r.idAbogado))
-  return (
-    <main className="product-page">
-      <p className="eyebrow">{t("public.myWorkspace")}</p>
-      <Heading level={1}>{t("navigation.myConsultations")}</Heading>
-      <p className="ui-muted page-description">Los formularios que completaste para contactar abogados por WhatsApp.</p>
-      <div className="action-row">
-        <Button
-          variant="secondary"
-          onClick={() => {
-            store.setHomeSection("catalog")
-            navigate("home")
-          }}
-        >
-          {t("home.findALawyer")}
-        </Button>
-        <Button variant="secondary" onClick={() => store.setChatOpen(true)}>
-          {t("public.chatWithLexi")}
-        </Button>
-        <Button variant="ghost" onClick={() => navigate("history")}>
-          Historial de Lexi
-        </Button>
-      </div>
-      <Card>
-        <div className="section-caption">
-          <Heading>Consultas enviadas</Heading>
-          <Field label="Buscar" placeholder="Abogado, especialidad o texto" value={query} onChange={(e) => setQuery(e.target.value)} />
-        </div>
-        {state.loading ? (
-          <p className="loading-line" role="status">
-            Cargando tus consultas…
-          </p>
-        ) : state.error ? (
-          <div role="alert">
-            <p className="ui-error">{state.error}</p>
-            <Button variant="secondary" onClick={() => setVersion((v) => v + 1)}>
-              Reintentar
-            </Button>
-          </div>
-        ) : rows.length ? (
-          <div className="request-list">
-            {rows.map((r) => {
-              const l = lawyerFor(r)
-              return (
-                <article className="contact-card" key={r.id}>
-                  <header>
-                    <div>
-                      <strong>{r.abogado}</strong>
-                      {r.especialidades && <small className="ui-muted"> · {r.especialidades}</small>}
-                    </div>
-                    <span className="status-pill">
-                      <Icon name="calendar" /> {localDateTime(r.creadoEn)}
-                    </span>
-                  </header>
-                  <p className="preserve-lines">{r.resumen}</p>
-                  <p className="ui-muted">
-                    Enviado como {r.nombre} · {r.telefono}
-                  </p>
-                  {l && (
-                    <div className="action-row">
-                      <Button variant="ghost" onClick={() => store.setProfile(l)}>
-                        {t("lawyers.viewProfile")}
-                      </Button>
-                      <Button variant="secondary" disabled={!l.contactEnabled} onClick={() => store.setContact(l, r.resumen)}>
-                        Volver a escribir
-                      </Button>
-                    </div>
-                  )}
-                </article>
-              )
-            })}
-          </div>
-        ) : (
-          <Empty title={state.rows.length ? "Sin resultados" : "Todavía no contactaste a ningún abogado"}>
-            {state.rows.length ? "Probá con otra búsqueda." : "Elegí un profesional del catálogo y completá el formulario de contacto."}
-          </Empty>
-        )}
-      </Card>
-    </main>
-  )
+  return <ConsultasCiudadano navigate={navigate} />
 }
-
-// ─── Capas globales ───────────────────────────────────────────────────────────
 
 export function ProductOverlays({ navigate }: { navigate: (p: Page) => void }) {
   const store = useProduct()
@@ -658,7 +576,7 @@ export function ProductOverlays({ navigate }: { navigate: (p: Page) => void }) {
             <Button onClick={() => store.setContact(null)}>{t("public.gotIt")}</Button>
           </Modal>
         ) : (
-          <ContactForm key={`${store.contact.id}-${store.user.email}`} lawyer={store.contact} seed={store.contactSeed} navigate={navigate} />
+          <ContactForm key={`${store.contact.id}-${store.user.email}`} lawyer={store.contact} seed={store.contactSeed} lexi={store.contactLexi} navigate={navigate} />
         ))}
       {store.information && (
         <Modal title={uiText(store.information.title)} onClose={() => store.setInformation(null)}>

@@ -12,6 +12,8 @@ import java.util.*;
 @RequestMapping("/api/interno/abogados")
 public class ValidarCredencialesAbogadoController {
  public record Request(@NotBlank @Email String mail,@NotBlank @Size(max=72) String contrasena){
+  public Request {mail=com.abogacia.microservicio_abogados.correo.CorreoNormalizado.normalizar(mail);}
+
   @Override public String toString(){return "Request[credenciales omitidas]";}
  }
  @org.springframework.beans.factory.annotation.Autowired(required=false) private com.abogacia.microservicio_abogados.operativa.CuentaPruebaService pruebas;

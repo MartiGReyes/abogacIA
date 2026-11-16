@@ -1,0 +1,28 @@
+# Overlay de los tres backends habituales. No inicia dependencias ni otros entornos.
+# Uso controlado: docker compose -f docker-compose.yml -f docker-compose.backends-seguros.yml up -d --no-deps --no-build autenticacion ciudadanos abogados
+x-bootstrap-seguro: &bootstrap-seguro
+  ABOGACIA_BOOTSTRAP_SAFE_START: 'true'
+  ABOGACIA_BOOTSTRAP_DEVELOPMENT_ENABLED: 'false'
+  ABOGACIA_BOOTSTRAP_STATES_ENABLED: 'false'
+  ABOGACIA_BOOTSTRAP_TEST_ACCOUNTS_ENABLED: 'false'
+  ABOGACIA_BOOTSTRAP_SCHEMA_ENABLED: 'false'
+  ABOGACIA_BOOTSTRAP_PADRON_ENABLED: 'false'
+  SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+  SPRING_SQL_INIT_MODE: never
+  SPRING_FLYWAY_ENABLED: 'false'
+  SPRING_LIQUIBASE_ENABLED: 'false'
+  DIDIT_RECONCILIATION_ENABLED: 'false'
+  PADRON_IMPORTAR: 'false'
+services:
+  autenticacion:
+    image: abogacia-autenticacion:arranque-seguro-20261114
+    environment: *bootstrap-seguro
+    ports: !override ['127.0.0.1:8081:8081']
+  ciudadanos:
+    image: abogacia-ciudadanos:arranque-seguro-20261114
+    environment: *bootstrap-seguro
+    ports: !override ['127.0.0.1:8080:8080']
+  abogados:
+    image: abogacia-abogados:arranque-seguro-20261114
+    environment: *bootstrap-seguro
+    ports: !override ['127.0.0.1:8082:8082']

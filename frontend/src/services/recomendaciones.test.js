@@ -36,7 +36,7 @@ test('ofrece solo después de la orientación, acepta una vez y guarda las tarje
     let finish;
     let calls = 0;
     const lawyers = [{ idAbogado: 1, nombre: 'Prueba' }];
-    const chat = crearConversacion(async () => 'Orientación', especialidad => {
+    const chat = crearConversacion(async () => ({ orientacion: 'Orientación', estado: 'RESPONDIDA', mostrarAbogados: true }), especialidad => {
         calls++; assert.equal(especialidad, 'Derecho Laboral');
         return new Promise(resolve => { finish = () => resolve(lawyers); });
     });
@@ -53,11 +53,11 @@ test('ofrece solo después de la orientación, acepta una vez y guarda las tarje
     assert.equal(calls, 1);
     assert.deepEqual(chat.getSnapshot().recomendaciones[id].abogados, lawyers);
     await chat.send('Otra consulta');
-    assert.equal(chat.getSnapshot().recomendaciones[id].estado, 'lista');
+    assert.equal(chat.getSnapshot().recomendaciones[id], undefined);
 });
 
 test('rechazar no consulta el backend ni repite la oferta de ese mensaje', async () => {
-    const chat = crearConversacion(async () => 'Orientación', () => { assert.fail('No debe consultar'); });
+    const chat = crearConversacion(async () => ({ orientacion: 'Orientación', estado: 'RESPONDIDA', mostrarAbogados: true }), () => { assert.fail('No debe consultar'); });
     await chat.send('Consulta');
     const id = chat.getSnapshot().msgs.at(-1).id;
     await chat.decidir(id, false);
@@ -69,7 +69,7 @@ test('rechazar no consulta el backend ni repite la oferta de ese mensaje', async
 
 test('maneja ausencia, errores recuperables y búsqueda general sin perder historial', async () => {
     let fail = true;
-    const chat = crearConversacion(async () => 'Orientación', async filter => {
+    const chat = crearConversacion(async () => ({ orientacion: 'Orientación', estado: 'RESPONDIDA', mostrarAbogados: true }), async filter => {
         assert.equal(filter, null);
         if (fail) throw new Error('Temporal');
         return [];
@@ -78,11 +78,12 @@ test('maneja ausencia, errores recuperables y búsqueda general sin perder histo
     const id = chat.getSnapshot().msgs.at(-1).id;
     await chat.decidir(id, true);
     assert.equal(chat.getSnapshot().recomendaciones[id].estado, 'error');
-    await chat.send('Podemos seguir');
     fail = false;
     await chat.decidir(id, true);
     assert.equal(chat.getSnapshot().recomendaciones[id].estado, 'lista');
     assert.deepEqual(chat.getSnapshot().recomendaciones[id].abogados, []);
+    await chat.send('Podemos seguir');
+    assert.equal(chat.getSnapshot().recomendaciones[id], undefined);
     assert.equal(chat.getSnapshot().msgs.length, 5);
 });
 

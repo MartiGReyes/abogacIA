@@ -189,7 +189,7 @@ public class AbogadoRegistrado {
     }
 
     public void setMail(String mail) {
-        this.mail = mail;
+        this.mail = com.abogacia.microservicio_abogados.correo.CorreoNormalizado.normalizar(mail);
     }
 
     public String getNroCelular() {

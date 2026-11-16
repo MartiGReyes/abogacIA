@@ -133,7 +133,7 @@ Si hay más de un DNI, estado o nombre normalizado por matrícula, se deja PENDI
 
 ## Didit — Etapa 1 implementada
 
-Workflow publicado indicado por el proyecto: `cf23be90-8ae5-4f2f-ac62-f2059ed159b2`. El ID se configura mediante DIDIT_WORKFLOW_ID, sin valor fijo en el código. El alcance vigente reemplaza el workflow documental anterior: **documento argentino + prueba de vida + Face Match**, todos obligatorios. No se consultó la consola privada ni se ejecutaron verificaciones reales durante la implementación.
+Workflow publicado indicado por el proyecto: `d82a4124-b57e-44a3-96a2-6b4a7d4701e5`. El ID se configura mediante DIDIT_WORKFLOW_ID, sin valor fijo en el código. El alcance vigente reemplaza el workflow documental anterior: **documento argentino + prueba de vida + Face Match**, todos obligatorios. No se consultó la consola privada ni se ejecutaron verificaciones reales durante la implementación.
 
 Referencias oficiales consultadas el 11/10/2026: [crear sesión](https://docs.didit.me/sessions-api/create-session), [consultar decisión](https://docs.didit.me/sessions-api/retrieve-session), [modelo de resultados](https://docs.didit.me/reference/data-models), [estados](https://docs.didit.me/integration/verification-statuses). Se utiliza API v3, no endpoints antiguos v2.
 
@@ -203,7 +203,7 @@ No se requieren DIDIT_WEBHOOK_SECRET ni URL pública HTTPS en esta etapa. localh
 
 1. Mantener las credenciales internas compartidas entre ciudadanos, autenticación y abogados según AUTENTICACION.md. Usar DB_PASSWORD para la base de abogados.
 2. Para una demostración sandbox, usar una base PostgreSQL de desarrollo aislada y una aplicación/workflow sandbox; no mezclar claves sandbox con registros reales. Para el workflow real indicado, comprobar su configuración privada y usar únicamente datos y personas autorizadas. No usar respuestas sintéticas para aprobar registros reales.
-3. Configurar DIDIT_API_KEY en el entorno privado del proceso y DIDIT_WORKFLOW_ID. No poner la clave en variables VITE_, consola, código, screenshots ni archivos versionados. El UUID publicado indicado es cf23be90-8ae5-4f2f-ac62-f2059ed159b2; un workflow de otra aplicación sandbox tendrá su propio ID.
+3. Configurar DIDIT_API_KEY en el entorno privado del proceso y DIDIT_WORKFLOW_ID. No poner la clave en variables VITE_, consola, código, screenshots ni archivos versionados. El UUID publicado indicado es d82a4124-b57e-44a3-96a2-6b4a7d4701e5; un workflow de otra aplicación sandbox tendrá su propio ID.
 4. Configurar las siete variables del aviso (versión, responsable, contacto, retención, ubicación, uso de modelos y READY), con información revisada y concreta. Sin ello la pantalla debe indicar bloqueo y no se inicia una sesión.
 5. Iniciar abogados (8082), autenticación (8081) y React (5173). Importar el padrón según la sección anterior y habilitar correo de consola únicamente en desarrollo. No es necesario publicar un webhook.
 6. Registrar la solicitud en /registro-abogado y confirmar el correo con su código. El login profesional devuelve 401 mientras esté pendiente.

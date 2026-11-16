@@ -1,3 +1,4 @@
+import { normalizarRespuesta } from './lexiContract.js';
 import { obtenerOrientacion } from './lexiService.js';
 import { obtenerRecomendaciones } from './abogadoService.js';
 
@@ -25,23 +26,26 @@ export function crearConversacion(orientar = obtenerOrientacion, recomendar = ob
         const text = value.trim();
         if (!text || state.typing) return;
         const id = retryId ?? `consulta-${++sequence}`;
-        update({ typing: true, error: '', retry: null,
+        update({ typing: true, error: '', retry: null, recomendaciones: {},
             msgs: retryId ? state.msgs : [...state.msgs, { id, from: 'user', text }] });
         try {
-            const reply = await orientar(text);
+            const result = normalizarRespuesta(await orientar(text));
+            const reply = result.orientacion;
             const replyId = `${id}-respuesta`;
-            update({ msgs: [...state.msgs, { id: replyId, from: 'lexi', text: reply }],
-                recomendaciones: { ...state.recomendaciones, [replyId]: {
+            update({ msgs: [...state.msgs, { id: replyId, from: 'lexi', text: reply, estado: result.estado, mostrarAbogados: result.mostrarAbogados }],
+                recomendaciones: result.mostrarAbogados === true ? { ...state.recomendaciones, [replyId]: {
+                    mostrarAbogados: true,
                     estado: 'oferta', especialidad: inferirEspecialidad(text), abogados: [], error: '',
                     consulta: text, orientacion: reply,
-                } } });
+                } } : {} });
         } catch (error) {
-            update({ error: error.message, retry: { text, id } });
+            update({ error: error.message, retry: { text, id }, recomendaciones: {} });
         } finally {
             update({ typing: false });
         }
     }
     function cambiarRecomendacion(id, patch) {
+        if (!state.recomendaciones[id]) return;
         update({ recomendaciones: { ...state.recomendaciones,
             [id]: { ...state.recomendaciones[id], ...patch } } });
     }

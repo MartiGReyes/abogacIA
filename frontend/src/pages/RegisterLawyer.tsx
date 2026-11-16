@@ -1,3 +1,4 @@
+import { reenviarConfirmacion } from '../services/correoService.js'
 import { useEffect, useState } from 'react'
 import { DemoHint, Icon, Notice, type Page } from '../ui'
 // Mismas especialidades que valida RegistrarAbogadoGestor.ESPECIALIDADES.
@@ -293,6 +294,7 @@ export default function RegisterLawyerPage({ navigate }: { navigate: (p: Page) =
               <span className="mx-auto w-12 h-12 rounded-xl border border-line-strong bg-white/[0.04] grid place-items-center text-sky-400"><Icon name="mail" className="w-5 h-5" /></span>
               <h2 className="mt-4 text-2xl font-bold">Confirmá tu cuenta</h2>
               <p className="mt-2 text-ink-2">Enviamos un código de 6 dígitos a <span className="font-semibold text-ink">{basicos.email}</span>.</p>
+              <button type="button" className="link mt-4" disabled={cargando} onClick={async () => { setCargando(true); setError(''); try { setError(await reenviarConfirmacion('ABOGADO', basicos.email)) } catch(e) { setError(e instanceof Error ? e.message : 'No se pudo solicitar el correo.') } finally { setCargando(false) } }}>Reenviar correo de confirmaci?n</button>
               <label htmlFor="lw-codigo" className="label mt-6">Código de confirmación</label>
               <CodeInput id="lw-codigo" value={codigo} onChange={v => { setCodigo(v); setError('') }} invalid={!!error} />
               {error && <div className="mt-3 text-left"><Notice kind="err" title="El código es incorrecto">{error}</Notice></div>}

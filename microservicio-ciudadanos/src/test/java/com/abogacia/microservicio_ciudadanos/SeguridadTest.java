@@ -25,6 +25,7 @@ class SeguridadTest {
     @Autowired CiudadanoRepository repository;
     @Autowired com.abogacia.microservicio_ciudadanos.repository.EstadoRepository estados;
     @Autowired com.abogacia.microservicio_ciudadanos.repository.VerificacionIdentidadRepository verificaciones;
+    @org.springframework.test.context.bean.override.mockito.MockitoBean com.abogacia.microservicio_ciudadanos.correo.InterfazCorreo correo;
     MockMvc mvc;
     final String credenciales = "{\"mail\":\"ana@example.com\",\"contrasena\":\"clave-segura\"}";
     final String interno = "/api/interno/ciudadanos/validar-credenciales";
@@ -58,9 +59,11 @@ class SeguridadTest {
                 .contentType(MediaType.APPLICATION_JSON).content(credenciales)).andExpect(status().isUnauthorized());
         mvc.perform(post(interno).with(httpBasic("test-service", "test-only-password"))
                 .contentType(MediaType.APPLICATION_JSON).content(credenciales)).andExpect(status().isUnauthorized());
+        var codigoEnviado=org.mockito.ArgumentCaptor.forClass(String.class);
+        org.mockito.Mockito.verify(correo).enviarMailConfirmacion(org.mockito.ArgumentMatchers.eq("ana@example.com"),codigoEnviado.capture());
         var ciudadano = repository.findByMail("ana@example.com").orElseThrow();
         mvc.perform(post("/api/ciudadanos/confirmar").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"codigo\":\"" + ciudadano.getCodigoConfirmacion() + "\"}")).andExpect(status().isOk());
+                .content("{\"codigo\":\"" + codigoEnviado.getValue() + "\"}")).andExpect(status().isOk());
         // Correo confirmado pero identidad sin aprobar: la cuenta sigue PENDIENTE y no inicia sesión.
         mvc.perform(post(interno).with(httpBasic("test-service", "test-only-password"))
                 .contentType(MediaType.APPLICATION_JSON).content(credenciales)).andExpect(status().isUnauthorized());

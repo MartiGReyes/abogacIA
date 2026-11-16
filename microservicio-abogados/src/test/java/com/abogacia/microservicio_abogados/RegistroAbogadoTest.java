@@ -180,10 +180,11 @@ class RegistroAbogadoTest {
   a.setEstado(estadosPerfil.findByNombreEstado("REGISTRADO").orElseThrow());abogados.save(a);
   var auth=org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject(a.getIdAbogado().toString()).claim("rol","ABOGADO"));
   mvc.perform(get("/api/abogados/me").with(auth)).andExpect(status().isOk()).andExpect(jsonPath("$.dni").value("12345678")).andExpect(jsonPath("$.contrasenaHash").doesNotExist());
-  mvc.perform(put("/api/abogados/me").with(auth).contentType(MediaType.APPLICATION_JSON).content(PERFIL)).andExpect(status().isOk()).andExpect(jsonPath("$.apellido").value("Editada")).andExpect(jsonPath("$.nroMatricula").value("10-999"));
-  assertEquals("Editada",abogados.findById(a.getIdAbogado()).orElseThrow().getApellido());
   var otro=new AbogadoRegistrado();otro.setDni("87654321");otro.setMail("ocupado@example.com");abogados.save(otro);
   mvc.perform(put("/api/abogados/me").with(auth).contentType(MediaType.APPLICATION_JSON).content(PERFIL.replace("nuevo@example.com","OCUPADO@example.com"))).andExpect(status().isConflict());
+  mvc.perform(put("/api/abogados/me").with(auth).contentType(MediaType.APPLICATION_JSON).content(PERFIL)).andExpect(status().isOk()).andExpect(jsonPath("$.apellido").value("Editada")).andExpect(jsonPath("$.nroMatricula").value("10-999"));
+  assertFalse(abogados.findById(a.getIdAbogado()).orElseThrow().getCorreoConfirmado());
+  assertEquals("Editada",abogados.findById(a.getIdAbogado()).orElseThrow().getApellido());
   assertEquals("nuevo@example.com",abogados.findById(a.getIdAbogado()).orElseThrow().getMail());
  }
 

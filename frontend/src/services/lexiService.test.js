@@ -9,9 +9,9 @@ test('envía el contrato real a un proxy del mismo origen', async () => {
         assert.equal(options.method, 'POST');
         assert.deepEqual(JSON.parse(options.body), { chatInput: 'Consulta laboral' });
         assert.equal(options.headers.Authorization, undefined);
-        return Response.json({ orientacion: 'Orientación del workflow' });
+        return Response.json({ orientacion: 'Orientación del workflow', estado: 'RESPONDIDA', mostrarAbogados: true });
     } });
-    assert.equal(reply, 'Orientación del workflow');
+    assert.deepEqual(reply, { orientacion: 'Orientación del workflow', estado: 'RESPONDIDA', mostrarAbogados: true });
 });
 
 test('rechaza errores HTTP y respuestas sin orientación válida', async () => {
@@ -28,6 +28,14 @@ test('timeout y fallo de red son recuperables', async () => {
     await assert.rejects(obtenerOrientacion('Consulta', { timeoutMs: 5, fetchImpl: (_, { signal }) => new Promise((_, reject) => {
         signal.addEventListener('abort', () => reject(new Error('abort')));
     }) }), /demoró/);
+});
+
+test('informa la indisponibilidad temporal del proveedor sin inventar orientación', async () => {
+    for (const status of [500, 502, 503, 504]) {
+        await assert.rejects(obtenerOrientacion('Consulta', {
+            fetchImpl: async () => new Response('', { status }),
+        }), /no está disponible temporalmente/);
+    }
 });
 
 test('evita envíos simultáneos y conserva historial al volver a suscribirse', async () => {

@@ -3,7 +3,7 @@
 /* oxlint-disable react/only-export-components */
 import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import logoImg from './imports/logoabogacIA.png'
+import logoImg from './imports/logonuevoabogacia.png'
 import lexiImg from './imports/mazcotalexi.png'
 import heroBg from './imports/caratula-V1.png'
 

@@ -22,6 +22,8 @@ public class CuentasAisladas {
             throw new IllegalStateException("Las cuentas sintéticas de ciudadanos solo admiten su esquema y configuración aislados.");
     }
     @Bean static BeanFactoryPostProcessor cuentasGuard(Environment e){return f->validar(e);}
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="abogacia.bootstrap.test-accounts-enabled",havingValue="true")
+    @org.springframework.core.annotation.Order(100)
     @Bean ApplicationRunner sembrarCiudadano(JdbcTemplate jdbc,PasswordEncoder encoder,Environment env){return args->{
         var db=jdbc.queryForMap("select current_database() db,current_user usuario");
         if(!"contacto_operativo_test".equals(db.get("db"))||!"ciudadanos_runtime".equals(db.get("usuario")))throw new IllegalStateException("Base no autorizada.");

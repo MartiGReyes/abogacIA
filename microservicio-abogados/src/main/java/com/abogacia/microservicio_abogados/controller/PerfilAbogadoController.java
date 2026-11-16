@@ -31,6 +31,7 @@ import java.util.*;
 public class PerfilAbogadoController {
 
  @org.springframework.beans.factory.annotation.Autowired(required=false) private com.abogacia.microservicio_abogados.operativa.CuentaPruebaService pruebas;
+ @org.springframework.beans.factory.annotation.Autowired private com.abogacia.microservicio_abogados.correo.CambiarCorreo cambioCorreo;
  private final AbogadoRepository abogados;
 
  private final EstadoRepository estados;
@@ -94,6 +95,7 @@ public class PerfilAbogadoController {
 
   if(abogados.existsByMailIgnoreCaseAndIdAbogadoNot(mail,a.getIdAbogado())) throw new ResponseStatusException(HttpStatus.CONFLICT,"El correo electrónico ya está registrado.");
 
+  if(!com.abogacia.microservicio_abogados.correo.CorreoNormalizado.normalizar(a.getMail()).equals(mail))cambioCorreo.cambiar(a,mail);
   a.setNombre(r.nombre().trim()); a.setApellido(r.apellido().trim()); a.setFechaNacimiento(r.fechaNacimiento()); a.setMail(mail);
 
   if(pruebas!=null && pruebas.cuenta(a))pruebas.guardarTelefono(a,r.nroCelular());
@@ -116,6 +118,8 @@ public class PerfilAbogadoController {
   pruebas.guardarDni(a,request.dni());return respuesta(a);
  }
  public record BajaRequest(@NotNull Boolean confirmacion, @NotBlank @Email @Size(max=255) String mail) {
+  public BajaRequest {mail=com.abogacia.microservicio_abogados.correo.CorreoNormalizado.normalizar(mail);}
+
   @Override public String toString() { return "BajaRequest[datos omitidos]"; }
  }
  public record WhatsAppRequest(@NotNull Boolean permitido) {}
