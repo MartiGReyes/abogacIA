@@ -31,7 +31,8 @@ public class DiditClient {
     // Only tests supply a local HTTP server; production host is fixed.
     public DiditClient(DiditConfig config,String base) {
         this.config=config;
-        var factory=new JdkClientHttpRequestFactory(HttpClient.newBuilder()
+        // HTTP/1.1: por HTTP/2 con cuerpo sin largo fijo, Didit no lee el JSON y responde 400 ("workflow_id required").
+        var factory=new JdkClientHttpRequestFactory(HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1)
                 .followRedirects(HttpClient.Redirect.NEVER).connectTimeout(Duration.ofSeconds(5)).build());
         factory.setReadTimeout(Duration.ofSeconds(25));
         http=RestClient.builder().baseUrl(base).requestFactory(factory)
