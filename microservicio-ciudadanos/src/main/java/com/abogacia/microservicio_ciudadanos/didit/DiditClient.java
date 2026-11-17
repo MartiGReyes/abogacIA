@@ -21,7 +21,7 @@ public class DiditClient {
     // Con conexiones inestables se reintentan las fallas de red y los errores transitorios de Didit.
     // Crear es seguro de repetir: Didit devuelve la misma sesión para el mismo vendor_data.
     private static final int INTENTOS=3;
-    private static final long PRESUPUESTO_MS=12_000;
+    private static final long PRESUPUESTO_MS=45_000; // Didit puede demorar en crear la sesión; el gateway corta a los 70 s.
     private final RestClient http;
     private final DiditConfig config;
     @org.springframework.beans.factory.annotation.Autowired
@@ -33,7 +33,7 @@ public class DiditClient {
         this.config=config;
         var factory=new JdkClientHttpRequestFactory(HttpClient.newBuilder()
                 .followRedirects(HttpClient.Redirect.NEVER).connectTimeout(Duration.ofSeconds(5)).build());
-        factory.setReadTimeout(Duration.ofSeconds(12));
+        factory.setReadTimeout(Duration.ofSeconds(25));
         http=RestClient.builder().baseUrl(base).requestFactory(factory)
                 .defaultHeader("Accept",MediaType.APPLICATION_JSON_VALUE)
                 .defaultHeader("x-api-key",config.key).build();

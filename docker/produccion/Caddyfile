@@ -1,0 +1,5 @@
+# Caddy obtiene y renueva el certificado HTTPS para el dominio de ORIGEN_PUBLICO.
+{$ORIGEN_PUBLICO} {
+    encode gzip
+    reverse_proxy frontend:80
+}

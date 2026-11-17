@@ -2,8 +2,9 @@ import http from 'node:http';
 import { normalizarRespuesta } from './lexiContract.mjs';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 const publicOrigin = new URL(process.env.ABOGACIA_PUBLIC_ORIGIN || 'http://localhost:5173');
-const localHosts = ['localhost', '127.0.0.1'].map(host => `${host}:${publicOrigin.port || '80'}`);
-const localOrigins = localHosts.map(host => `http://${host}`);
+// Local access keeps working as before; a deployed origin (ABOGACIA_PUBLIC_ORIGIN) is also accepted.
+const localHosts = [...new Set([...['localhost', '127.0.0.1'].map(host => `${host}:${publicOrigin.port || '80'}`), publicOrigin.host])];
+const localOrigins = [...new Set([...localHosts.filter(host => host !== publicOrigin.host).map(host => `http://${host}`), publicOrigin.origin])];
 
 const testMails = new Set(['abogado.prueba@abogacia.local', 'abogado.otro@abogacia.local', 'ciudadano.prueba@abogacia.local']);
 // The habitual gateway must not depend on, or merge data from, isolated services.

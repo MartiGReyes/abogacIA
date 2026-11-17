@@ -1,0 +1,77 @@
+# Servidor público. Se usa JUNTO con docker-compose.yml (no cambia el uso local):
+#   docker compose -f docker-compose.yml -f docker-compose.produccion.yml up -d --build
+# Requiere en .env: ORIGEN_PUBLICO=https://<dominio>   Ver docker/produccion/GUIA.md
+
+x-origen: &origen
+  ABOGACIA_CORS_ORIGINS: ${ORIGEN_PUBLICO:?Definí ORIGEN_PUBLICO en .env}
+  ABOGACIA_FRONTEND_URL: ${ORIGEN_PUBLICO}
+
+services:
+  postgres:
+    restart: unless-stopped
+    ports: !reset []
+    volumes:
+      # Crea abogacia_rag (legislación para Lexi) junto a las otras dos bases en un volumen nuevo.
+      - ./docker/produccion/init-rag.sql:/docker-entrypoint-initdb.d/02-rag.sql:ro
+
+  ciudadanos:
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      <<: *origen
+      DIDIT_CALLBACK_URL: ${ORIGEN_PUBLICO}/verificar-identidad-ciudadano
+
+  abogados:
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      <<: *origen
+      ABOGADOS_CORS_ORIGIN: ${ORIGEN_PUBLICO}
+      DIDIT_CALLBACK_URL: ${ORIGEN_PUBLICO}/registro-abogado
+      ABOGACIA_FOTOS_ENABLED: "true"
+      ABOGACIA_FOTOS_DIRECTORIO: /datos/fotos-perfil
+    volumes:
+      - fotos_abogados:/datos/fotos-perfil
+
+  autenticacion:
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      <<: *origen
+
+  # Mismo gateway que el entorno habitual (Lexi y ruteo de /api), aceptando el dominio público.
+  gateway:
+    build: ./docker/unificado
+    restart: unless-stopped
+    environment:
+      ABOGACIA_PUBLIC_ORIGIN: ${ORIGEN_PUBLICO}
+      ABOGACIA_ISOLATED_ROUTING_ENABLED: "false"
+    depends_on: [autenticacion, n8n]
+
+  frontend:
+    restart: unless-stopped
+    ports: !reset []
+    volumes:
+      - ./docker/unificado/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on: [gateway]
+
+  n8n:
+    restart: unless-stopped
+
+  # HTTPS automático (Let's Encrypt). Único servicio con puertos abiertos a internet.
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    environment:
+      ORIGEN_PUBLICO: ${ORIGEN_PUBLICO}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/produccion/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on: [frontend]
+
+volumes:
+  fotos_abogados:
+  caddy_data:

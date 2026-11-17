@@ -108,7 +108,7 @@ public class VerificacionIdentidadGestor {
             if(v.ultimaConsulta!=null && v.ultimaConsulta.plusSeconds(30).isAfter(now))throw busy();
             v.workflow=config.workflowId();v.avisoVersion=version;v.avisoHash=hash(aviso.texto());
             v.consentimiento=true;v.consentimientoFecha=now;v.estado="CREANDO";
-            v.operacion=UUID.randomUUID().toString();v.leaseHasta=now.plusSeconds(30);v.ultimaConsulta=now;
+            v.operacion=UUID.randomUUID().toString();v.leaseHasta=now.plusSeconds(60);v.ultimaConsulta=now;
             v.proximaConsulta=null;verificaciones.save(v);
             return new Trabajo(id,null,v.referencia,v.operacion);
         });
@@ -149,7 +149,7 @@ public class VerificacionIdentidadGestor {
                 v.proximaConsulta=null;v.errorCodigo="LIMITE_CONSULTAS";return null;
             }
             if(Set.of("Approved","Declined","Expired","Abandoned","Kyc Expired").contains(v.estado))return null;
-            v.operacion=UUID.randomUUID().toString();v.leaseHasta=now.plusSeconds(30);
+            v.operacion=UUID.randomUUID().toString();v.leaseHasta=now.plusSeconds(60);
             v.consultas++;v.ultimaConsulta=now;v.proximaConsulta=now.plusSeconds(300);
             return new Trabajo(id,v.sesion,v.referencia,v.operacion);
         });
