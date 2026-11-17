@@ -55,7 +55,7 @@ test('rechazos, 503 y recuperación del recorrido sin recomendaciones residuales
  await page.goto('/');await page.getByRole('button',{name:'Consultar a Lexi',exact:true}).first().click()
  await ask(page,'Me despidieron sin causa');await expect(page.getByRole('button',{name:'Sí, ver abogados',exact:true})).toBeVisible()
  await ask(page,'Quiero divorciarme');await expect(page.getByRole('button',{name:'Sí, ver abogados',exact:true})).toHaveCount(0)
- await expect(page.getByText('No puedo responder esa consulta',{exact:true})).toBeVisible()
+ await expect(page.getByText('Por ahora solo puedo orientarte en temas laborales (Ley de Contrato de Trabajo): despidos, indemnizaciones, sueldos, aguinaldo, vacaciones, jornada y licencias. Tu consulta es de otra materia, así que te conviene hablarlo directamente con un abogado',{exact:true})).toBeVisible()
  await ask(page,'Lexi idiota');await expect(page.getByText('Tu mensaje incumple las normas de uso de Lexi. Reformulá tu consulta con respeto',{exact:true})).toBeVisible()
  await ask(page,'Error 503');await expect(page.getByRole('button',{name:'Sí, ver abogados',exact:true})).toHaveCount(0)
  await ask(page,'Mi jefe me insulta y amenaza');await expect(page.getByRole('button',{name:'Sí, ver abogados',exact:true})).toBeVisible()

@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test'
 import fs from 'node:fs'
 const results:unknown[]=[]
-const outside='No puedo responder esa consulta'
+const outside='Por ahora solo puedo orientarte en temas laborales (Ley de Contrato de Trabajo): despidos, indemnizaciones, sueldos, aguinaldo, vacaciones, jornada y licencias. Tu consulta es de otra materia, así que te conviene hablarlo directamente con un abogado'
 const abuse='Tu mensaje incumple las normas de uso de Lexi. Reformulá tu consulta con respeto'
 test('Lexi habitual: Gemini y RAG reales, estados, recuperación y respuestas demoradas',async({page})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))

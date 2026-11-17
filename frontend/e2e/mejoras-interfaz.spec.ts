@@ -18,7 +18,7 @@ async function fixtures(page:Page,rol='CIUDADANO'){
   const body=req.method()==='GET'?null:req.postDataJSON()
   if(req.method()!=='GET')writes.push({path:p,body})
   const json=(v:unknown)=>route.fulfill({json:v})
-  if(p==='/api/lexi/orientacion')return json(body.chatInput.includes('divor')?{orientacion:'No puedo responder esa consulta',estado:'FUERA_DE_ALCANCE',mostrarAbogados:false}:{orientacion:body.chatInput===consulta?orientacion:'Orientación correspondiente a '+body.chatInput,estado:'RESPONDIDA',mostrarAbogados:true})
+  if(p==='/api/lexi/orientacion')return json(body.chatInput.includes('divor')?{orientacion:'Por ahora solo puedo orientarte en temas laborales (Ley de Contrato de Trabajo): despidos, indemnizaciones, sueldos, aguinaldo, vacaciones, jornada y licencias. Tu consulta es de otra materia, así que te conviene hablarlo directamente con un abogado',estado:'FUERA_DE_ALCANCE',mostrarAbogados:false}:{orientacion:body.chatInput===consulta?orientacion:'Orientación correspondiente a '+body.chatInput,estado:'RESPONDIDA',mostrarAbogados:true})
   if(p==='/api/ciudadanos/me')return json({idCiudadano:881101,nombre:'Ciudadano',apellido:'Sintético',mail:'ciudadano@example.invalid'})
   if(p==='/api/ciudadanos/me/consultas-lexi')return json([])
   if(p==='/api/abogados/me')return json(lawyer)

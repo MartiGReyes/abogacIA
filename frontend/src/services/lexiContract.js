@@ -1,5 +1,5 @@
 export const MENSAJES = Object.freeze({
-    FUERA_DE_ALCANCE: 'No puedo responder esa consulta',
+    FUERA_DE_ALCANCE: 'Por ahora solo puedo orientarte en temas laborales (Ley de Contrato de Trabajo): despidos, indemnizaciones, sueldos, aguinaldo, vacaciones, jornada y licencias. Tu consulta es de otra materia, así que te conviene hablarlo directamente con un abogado',
     LENGUAJE_INAPROPIADO: 'Tu mensaje incumple las normas de uso de Lexi. Reformulá tu consulta con respeto',
 });
 

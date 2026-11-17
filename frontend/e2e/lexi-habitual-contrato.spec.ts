@@ -42,7 +42,7 @@ test('estados, contrato inválido, 503, contacto y recuperación en el frontend 
  const form=page.getByRole('dialog',{name:'Consultar a Profesional Sintético',exact:true});await expect(form).toBeVisible()
  await expect(form.getByRole('textbox',{name:'Resumen de tu consulta',exact:true})).toHaveValue('Me despidieron sin causa')
  await form.getByRole('button',{name:'Cerrar ventana',exact:true}).click()
- for(const [query,text] of [['Divorcio','No puedo responder esa consulta'],['Insulto a Lexi','Tu mensaje incumple las normas de uso de Lexi. Reformulá tu consulta con respeto']]){
+ for(const [query,text] of [['Divorcio','Por ahora solo puedo orientarte en temas laborales (Ley de Contrato de Trabajo): despidos, indemnizaciones, sueldos, aguinaldo, vacaciones, jornada y licencias. Tu consulta es de otra materia, así que te conviene hablarlo directamente con un abogado'],['Insulto a Lexi','Tu mensaje incumple las normas de uso de Lexi. Reformulá tu consulta con respeto']]){
   await ask(query);await expect(page.locator('.chat-message--lexi').last().locator('p').first()).toHaveText(text);await expect(offer()).toHaveCount(0);await expect(page.locator('.recommendation')).toHaveCount(0)
   await ask('Mi jefe me insultó y me amenazó con despedirme');await expect(offer()).toHaveCount(1)
  }

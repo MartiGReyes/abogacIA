@@ -20,7 +20,7 @@ test('frontend habitual público y Lexi sin cuentas',async({page},info)=>{
  if(info.project.name==='escritorio'){
   for(const [query,state,show,text] of [
    ['Me despidieron sin causa','RESPONDIDA',true,null],
-   ['Quiero divorciarme','FUERA_DE_ALCANCE',false,'No puedo responder esa consulta'],
+   ['Quiero divorciarme','FUERA_DE_ALCANCE',false,'Por ahora solo puedo orientarte en temas laborales (Ley de Contrato de Trabajo): despidos, indemnizaciones, sueldos, aguinaldo, vacaciones, jornada y licencias. Tu consulta es de otra materia, así que te conviene hablarlo directamente con un abogado'],
   ] as const){
    await page.getByLabel('Tu consulta para Lexi').fill(query)
    const received=page.waitForResponse(r=>r.url().endsWith('/api/lexi/orientacion'),{timeout:80000})

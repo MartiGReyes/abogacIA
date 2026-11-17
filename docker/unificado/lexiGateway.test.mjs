@@ -27,7 +27,7 @@ if(process.env.LEXI_GATEWAY_CHILD==='1'){
     const r=http.request({hostname:'127.0.0.1',port,path:'/api/lexi/orientacion',method:'POST',headers:{Host:'localhost:5173',Origin:'http://localhost:5173','Content-Type':'application/json'}},res=>{let body='';res.on('data',x=>body+=x);res.on('end',()=>resolve({status:res.statusCode,data:JSON.parse(body)}))});r.on('error',reject);r.end(JSON.stringify({chatInput:input}));
    });
    const labor=await request('laboral');assert.equal(labor.status,200);assert.equal(labor.data.mostrarAbogados,true);
-   for(const [input,text] of [['divorcio','No puedo responder esa consulta'],['insulto','Tu mensaje incumple las normas de uso de Lexi. Reformulá tu consulta con respeto']]){const r=await request(input);assert.equal(r.status,200);assert.equal(r.data.orientacion,text);assert.equal(r.data.mostrarAbogados,false)}
+   for(const [input,text] of [['divorcio','Por ahora solo puedo orientarte en temas laborales (Ley de Contrato de Trabajo): despidos, indemnizaciones, sueldos, aguinaldo, vacaciones, jornada y licencias. Tu consulta es de otra materia, así que te conviene hablarlo directamente con un abogado'],['insulto','Tu mensaje incumple las normas de uso de Lexi. Reformulá tu consulta con respeto']]){const r=await request(input);assert.equal(r.status,200);assert.equal(r.data.orientacion,text);assert.equal(r.data.mostrarAbogados,false)}
    for(const input of ['desconocido','invalido','legado','503']){const r=await request(input);assert.equal(r.status,503);assert.notEqual(r.data.mostrarAbogados,true)}
   }finally{child.kill();await new Promise(resolve=>child.once('exit',resolve));}
  });
