@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS contacto_whatsapp (
             especialidades varchar(500) NOT NULL DEFAULT '',
             nombre varchar(100) NOT NULL,
             telefono varchar(35) NOT NULL,
-            resumen varchar(800) NOT NULL,
+            resumen varchar(2000) NOT NULL,
             creado_en timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS caso_profesional (
             id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

@@ -201,7 +201,7 @@ function ContactForm({ lawyer, seed, lexi, navigate }: { lawyer: Lawyer; seed: s
   const [datos, setDatos] = useState({
     nombre: store.user ? `${store.user.nombre} ${store.user.apellido}`.trim() : "",
     telefono: "",
-    resumen: resumenLexi ? combinarResumenLexi(resumenLexi) : seed.slice(0, 800),
+    resumen: resumenLexi ? combinarResumenLexi(resumenLexi) : seed.slice(0, 2000),
     areaJuridica: lawyer.specialties.length > 1 ? "" : lawyer.specialties[0] || "Consulta general",
   })
   const [consentimiento, setConsentimiento] = useState("")
@@ -328,10 +328,10 @@ function ContactForm({ lawyer, seed, lexi, navigate }: { lawyer: Lawyer; seed: s
           label="Resumen de tu consulta"
           multiline
           required
-          maxLength={800}
+          maxLength={2000}
           value={datos.resumen}
           onChange={(e) => editar("resumen", e.target.value)}
-          help={`${datos.resumen.length}/800 · No incluyas DNI, matrícula ni datos sensibles innecesarios.`}
+          help={`${datos.resumen.length}/2000 · No incluyas DNI, matrícula ni datos sensibles innecesarios.`}
         />}
         <section aria-label="Vista previa del mensaje">
           <Heading level={3}>Vista previa del mensaje</Heading>

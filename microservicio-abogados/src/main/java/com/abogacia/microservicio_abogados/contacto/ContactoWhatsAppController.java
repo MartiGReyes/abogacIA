@@ -31,7 +31,7 @@ public class ContactoWhatsAppController {
     public ResponseEntity<?> preparar(@RequestBody Formulario f,HttpServletRequest request,@org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.oauth2.jwt.Jwt jwt){
         if(jwt==null || !"CIUDADANO".equals(jwt.getClaimAsString("rol")))throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         if(!f.consentimiento()||!AVISO.equals(f.avisoVersion()))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Revisá el mensaje y aceptá el consentimiento.");
-        String nombre=campo(f.nombre(),100),telefono=campo(f.telefono(),35),resumen=campo(f.resumen(),800);
+        String nombre=campo(f.nombre(),100),telefono=campo(f.telefono(),35),resumen=campo(f.resumen(),2000);
         if(nombre.contains("\n")||nombre.contains("\r")||telefono.contains("\n"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Revisá nombre y teléfono.");
         try{DatosOperativos.telefono(telefono);}catch(IllegalArgumentException e){throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Ingresá tu teléfono en formato internacional argentino.");}
         String destino,numero,dni,matricula;long idDestino;java.util.Set<String> especialidades;

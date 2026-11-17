@@ -22,7 +22,7 @@ test('extractos largos son prefijos literales explícitos, sin superar el contra
         assert.ok(resumen[key].endsWith('…'));
         assert.ok(origen[key].startsWith(resumen[key].slice(0, -1)));
     }
-    assert.ok(combinarResumenLexi(resumen).length <= 800);
+    assert.ok(combinarResumenLexi(resumen).length <= 2000);
 });
 
 test('una consulta nueva revoca contacto anterior incluso con recomendación pendiente', async () => {

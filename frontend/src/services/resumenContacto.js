@@ -1,5 +1,5 @@
-// Literal excerpts only. The existing API accepts at most 800 UTF-16 code units.
-export const LIMITES_RESUMEN = Object.freeze({ consulta: 320, orientacion: 400 });
+// Literal excerpts only. The API accepts at most 2000 UTF-16 code units (contacto_whatsapp.resumen).
+export const LIMITES_RESUMEN = Object.freeze({ consulta: 500, orientacion: 1400 });
 function extracto(texto, limite) {
     const limpio = String(texto ?? '').trim();
     if (limpio.length <= limite) return limpio;

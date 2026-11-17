@@ -81,8 +81,16 @@ http.createServer(async (req, res) => {
     if (isolatedRouting && publicCase) test = true;
     let target;
     if (path === '/api/lexi/orientacion') {
-      const response = await fetch('http://n8n:5678/webhook/orientacion-legal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, signal: AbortSignal.timeout(65000) });
-      if (!response.ok) return send(res, 503, { error: 'Lexi no está disponible temporalmente. Podés reintentar en unos minutos.' });
+      // Gemini a veces falla rápido (alta demanda o JSON incompleto): se reintenta una sola vez
+      // si queda tiempo. Presupuesto total 115 s; nginx espera 125 s y el navegador 130 s.
+      const inicio = Date.now();
+      const consultar = ms => fetch('http://n8n:5678/webhook/orientacion-legal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, signal: AbortSignal.timeout(ms) });
+      let response;
+      try { response = await consultar(65000); } catch { response = null; }
+      if (!response?.ok && Date.now() - inicio < 45000) {
+        try { response = await consultar(115000 - (Date.now() - inicio)); } catch { response = null; }
+      }
+      if (!response?.ok) return send(res, 503, { error: 'Lexi no está disponible temporalmente. Podés reintentar en unos minutos.' });
       return send(res, 200, normalizarRespuesta(await response.json()));
     }
     if (path.startsWith('/api/auth/')) target = test ? 'auth-operativa:8081' : 'autenticacion:8081';

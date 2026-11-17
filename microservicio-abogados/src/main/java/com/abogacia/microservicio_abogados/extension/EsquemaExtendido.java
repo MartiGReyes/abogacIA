@@ -32,7 +32,7 @@ public class EsquemaExtendido implements ApplicationRunner {
             especialidades varchar(500) NOT NULL DEFAULT '',
             nombre varchar(100) NOT NULL,
             telefono varchar(35) NOT NULL,
-            resumen varchar(800) NOT NULL,
+            resumen varchar(2000) NOT NULL,
             creado_en timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP)""",
         "CREATE INDEX IF NOT EXISTS ix_contacto_ciudadano ON contacto_whatsapp(id_ciudadano, creado_en)",
         "CREATE INDEX IF NOT EXISTS ix_contacto_abogado ON contacto_whatsapp(id_abogado, creado_en)",

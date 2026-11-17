@@ -1,6 +1,6 @@
 import { normalizarRespuesta } from './lexiContract.js';
 // Same-origin endpoint: the browser never connects directly to n8n.
-export async function obtenerOrientacion(chatInput, { fetchImpl = globalThis.fetch, timeoutMs = 75000 } = {}) {
+export async function obtenerOrientacion(chatInput, { fetchImpl = globalThis.fetch, timeoutMs = 130000 } = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
