@@ -431,6 +431,22 @@ function LexiRecommendations({ id, data }: { id: string; data: Recomendacion }) 
   )
 }
 
+// Burbuja de espera: puntos animados y un texto que avanza con el tiempo, porque Lexi puede tardar 20-40 s.
+function LexiTyping() {
+  const [fase, setFase] = useState(0)
+  useEffect(() => {
+    const timers = [setTimeout(() => setFase(1), 5000), setTimeout(() => setFase(2), 14000)]
+    return () => timers.forEach(clearTimeout)
+  }, [])
+  const textos = [t("public.lexiIsReadingYourQuestion"), t("public.lexiIsSearchingTheLaw"), t("public.lexiIsPreparingSomeGuidance")]
+  return (
+    <div role="status" className="chat-message typing-indicator">
+      <span className="typing-dots" aria-hidden="true"><span /><span /><span /></span>
+      <span key={fase} className="typing-text">{textos[fase]}</span>
+    </div>
+  )
+}
+
 export function LexiPanel() {
   const store = useProduct()
   const conversation = store.conversation
@@ -490,11 +506,7 @@ export function LexiPanel() {
             )}
           </div>
         )}
-        {typing && (
-          <p role="status" className="typing-indicator">
-            {t("public.lexiIsPreparingSomeGuidance")}
-          </p>
-        )}
+        {typing && <LexiTyping />}
       </div>
       {msgs.length === 1 && !typing && (
         <div className="lexi-suggestions">

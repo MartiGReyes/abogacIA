@@ -596,6 +596,8 @@
   "home.lexiLegalGuidanceAssistant": "Lexi, legal guidance assistant",
   "home.lexiProvidesGeneralGuidanceAndDoesNotReplaceProfessional": "Lexi provides general guidance and does not replace professional advice.",
   "public.lexiLegalAssistant": "Lexi, legal assistant",
+  "public.lexiIsReadingYourQuestion": "Lexi is reading your question…",
+  "public.lexiIsSearchingTheLaw": "Lexi is searching the Employment Contract Law…",
   "public.lexiIsPreparingSomeGuidance": "Lexi is preparing some guidance…",
   "public.lexiProvidesGeneralLegalGuidanceAndDoesNotReplace": "Lexi provides general legal guidance and does not replace a professional.",
   "language.choose": "Choose language",

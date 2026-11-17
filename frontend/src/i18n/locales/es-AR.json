@@ -596,6 +596,8 @@
   "home.lexiLegalGuidanceAssistant": "Lexi, asistente de orientación legal",
   "home.lexiProvidesGeneralGuidanceAndDoesNotReplaceProfessional": "Lexi brinda orientación general y no reemplaza el asesoramiento profesional.",
   "public.lexiLegalAssistant": "Lexi, asistente legal",
+  "public.lexiIsReadingYourQuestion": "Lexi está leyendo tu consulta…",
+  "public.lexiIsSearchingTheLaw": "Lexi está buscando en la Ley de Contrato de Trabajo…",
   "public.lexiIsPreparingSomeGuidance": "Lexi está preparando una orientación…",
   "public.lexiProvidesGeneralLegalGuidanceAndDoesNotReplace": "Lexi brinda orientación legal general mediante inteligencia artificial y no reemplaza a un profesional.",
   "language.choose": "Elegir idioma",
