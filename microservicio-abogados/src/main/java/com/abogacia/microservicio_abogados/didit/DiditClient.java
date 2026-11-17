@@ -31,11 +31,12 @@ public class DiditClient {
     // Only tests supply a local HTTP server; production host is fixed.
     public DiditClient(DiditConfig config,String base) {
         this.config=config;
-        // HTTP/1.1: por HTTP/2 con cuerpo sin largo fijo, Didit no lee el JSON y responde 400 ("workflow_id required").
+        // Didit no lee cuerpos enviados en partes (chunked) y responde 400 ("workflow_id required"):
+        // se usa HTTP/1.1 y se envía el JSON completo con Content-Length (BufferingClientHttpRequestFactory).
         var factory=new JdkClientHttpRequestFactory(HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1)
                 .followRedirects(HttpClient.Redirect.NEVER).connectTimeout(Duration.ofSeconds(5)).build());
         factory.setReadTimeout(Duration.ofSeconds(25));
-        http=RestClient.builder().baseUrl(base).requestFactory(factory)
+        http=RestClient.builder().baseUrl(base).requestFactory(new org.springframework.http.client.BufferingClientHttpRequestFactory(factory))
                 .defaultHeader("Accept",MediaType.APPLICATION_JSON_VALUE)
                 .defaultHeader("x-api-key",config.key).build();
     }
