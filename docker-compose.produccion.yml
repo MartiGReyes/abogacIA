@@ -5,6 +5,16 @@
 x-origen: &origen
   ABOGACIA_CORS_ORIGINS: ${ORIGEN_PUBLICO:?Definí ORIGEN_PUBLICO en .env}
   ABOGACIA_FRONTEND_URL: ${ORIGEN_PUBLICO}
+  # Correo real (Gmail SMTP): se activa con CORREO_PERFIL=gmail y SMTP_* en .env.
+  # Sin eso queda el correo simulado de siempre.
+  SPRING_PROFILES_ACTIVE: ${CORREO_PERFIL:-default}
+  SMTP_FROM: ${SMTP_FROM:-}
+  SMTP_USERNAME: ${SMTP_USERNAME:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  ABOGACIA_CORREO_ENABLED: ${ABOGACIA_CORREO_ENABLED:-false}
+  ABOGACIA_RECUPERACION_ENABLED: ${ABOGACIA_RECUPERACION_ENABLED:-false}
 
 services:
   postgres:
